@@ -95,8 +95,16 @@ jobs:
         shell: bash
         run: |
           mkdir out
-          cp cau-noi-win/cau-noi.exe out/
-          (cd cau-noi-win && ls -1 *.dll) > out/danh_sach_dll.txt
+          cp cau-noi-win/* out/
+          (cd cau-noi-win && ls -l) > out/danh_sach_file.txt
+          # file lon hon 18MB -> cat thanh nhieu phan .phan_aa, .phan_ab ... (de chuyen ve may nguoi dung)
+          cd out
+          for f in *; do
+            if [ -f "$f" ] && [ $(stat -c%s "$f") -gt 18000000 ]; then
+              split -b 18000000 "$f" "$f.phan_" && rm "$f"
+            fi
+          done
+          cd ..
           echo "${{ github.sha }}" > out/commit.txt
           cd out
           git init -q
