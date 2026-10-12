@@ -12,6 +12,8 @@ jobs:
   build-caunoi:
     name: Build cau-noi Windows
     runs-on: windows-latest
+    permissions:
+      contents: write
     defaults:
       run:
         shell: msys2 {0}
@@ -88,3 +90,17 @@ jobs:
           path: cau-noi-win
           if-no-files-found: error
           retention-days: 30
+
+      - name: Push cau-noi.exe to branch ban-build (de Claude lay ve qua git)
+        shell: bash
+        run: |
+          mkdir out
+          cp cau-noi-win/cau-noi.exe out/
+          (cd cau-noi-win && ls -1 *.dll) > out/danh_sach_dll.txt
+          echo "${{ github.sha }}" > out/commit.txt
+          cd out
+          git init -q
+          git checkout -q -b ban-build
+          git add .
+          git -c user.name=ci -c user.email=ci@example.com commit -q -m "build ${{ github.sha }}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ban-build
