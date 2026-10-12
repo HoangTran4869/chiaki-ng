@@ -11,6 +11,7 @@ endmacro()
 
 option(CHIAKI_ENABLE_TESTS "Enable tests for Chiaki" ON)
 option(CHIAKI_ENABLE_CLI "Enable CLI for Chiaki" ON)
+option(CHIAKI_ENABLE_CAUNOI "Build cau-noi bridge for Dich Phu De Game" OFF)
 option(CHIAKI_ENABLE_GUI "Enable Qt GUI" ON)
 option(CHIAKI_ENABLE_ANDROID "Enable Android (Use only as part of the Gradle Project)" OFF)
 option(CHIAKI_ENABLE_BOREALIS "Enable Borealis GUI (For Nintendo Switch or PC)" OFF)
@@ -205,6 +206,10 @@ add_subdirectory(lib)
 
 if(CHIAKI_ENABLE_CLI)
 	add_subdirectory(cli)
+endif()
+
+if(CHIAKI_ENABLE_CAUNOI)
+	add_subdirectory(caunoi)
 endif()
 
 if(CHIAKI_ENABLE_STEAMDECK_NATIVE)

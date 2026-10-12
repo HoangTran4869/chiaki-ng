@@ -1,0 +1,90 @@
+name: Build cau-noi (Windows x64)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "caunoi/**"
+      - ".github/workflows/build-caunoi.yml"
+
+jobs:
+  build-caunoi:
+    name: Build cau-noi Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Disable autocrlf
+        shell: pwsh
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: mingw64
+          update: true
+          install: git diffutils unzip zip
+          pacboy: >-
+            cc:p
+            cmake:p
+            ninja:p
+            pkgconf:p
+            openssl:p
+            opus:p
+            json-c:p
+            libevent:p
+            miniupnpc:p
+            curl:p
+            protobuf:p
+            python:p
+            python-pip:p
+            python-protobuf:p
+            ntldd:p
+
+      - name: Setup ffmpeg
+        run: |
+          curl -LO https://github.com/streetpea/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-shared-7.1.zip
+          unzip -q ffmpeg-n7.1-latest-win64-gpl-shared-7.1.zip
+          cp -a "ffmpeg-n7.1-latest-win64-gpl-shared-7.1/bin/." /mingw64/bin
+          cp -a "ffmpeg-n7.1-latest-win64-gpl-shared-7.1/include/." /mingw64/include
+          cp -a "ffmpeg-n7.1-latest-win64-gpl-shared-7.1/lib/." /mingw64/lib
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCHIAKI_ENABLE_GUI=OFF -DCHIAKI_ENABLE_CLI=OFF -DCHIAKI_ENABLE_TESTS=OFF \
+            -DCHIAKI_ENABLE_CAUNOI=ON -DCHIAKI_ENABLE_FFMPEG_DECODER=ON \
+            -DCHIAKI_ENABLE_STEAMDECK_NATIVE=OFF -DCHIAKI_ENABLE_SETSU=OFF \
+            -DCHIAKI_ENABLE_STEAM_SHORTCUT=OFF -DCHIAKI_ENABLE_SPEEX=OFF \
+            -DCHIAKI_ENABLE_PI_DECODER=OFF
+
+      - name: Build
+        run: |
+          cmake --build build --config Release --target cau-noi
+
+      - name: Package
+        run: |
+          mkdir -p cau-noi-win
+          cp build/caunoi/cau-noi.exe cau-noi-win/
+          for dll in $(ntldd -R build/caunoi/cau-noi.exe | grep -i mingw64 | sed -E 's/.*=> (.*\.dll).*/\1/' | sort -u); do
+            cp "$(cygpath -u "$dll")" cau-noi-win/ || true
+          done
+          cp COPYING cau-noi-win/LICENSE-AGPL.txt
+          echo "cau-noi - dua tren chiaki-ng (https://github.com/streetpea/chiaki-ng), AGPL-3.0." > cau-noi-win/README.txt
+          echo "Ma nguon: https://github.com/HoangTran4869/chiaki-ng (thu muc caunoi)" >> cau-noi-win/README.txt
+          ls -la cau-noi-win
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: cau-noi-win
+          path: cau-noi-win
+          if-no-files-found: error
+          retention-days: 30
