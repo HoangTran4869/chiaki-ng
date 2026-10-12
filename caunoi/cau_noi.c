@@ -196,6 +196,27 @@ static void su_kien_cb(ChiakiEvent *event, void *user)
 	}
 }
 
+static void khong_hien_cb(void *user, bool khong_hien)
+{
+	ChupCtx *ctx = user;
+	// PS5 dang mo noi dung duoc bao ve (YouTube, Netflix, ...): Sony khong cho chia se hinh qua Remote Play
+	fprintf(stderr, "TT|%s\n", khong_hien ? "bi_chan_hinh" : "het_bi_chan_hinh");
+	fflush(stderr);
+	if(ctx)
+		CHIAKI_LOGW(ctx->log, khong_hien ? "PS5 dang chan hinh (noi dung duoc bao ve)" : "PS5 het chan hinh");
+}
+
+static void gan_bo_nhan(ChiakiSession *session, ChupCtx *ctx)
+{
+	ChiakiCtrlDisplaySink sink;
+	memset(&sink, 0, sizeof(sink));
+	sink.user = ctx;
+	sink.cantdisplay_cb = khong_hien_cb;
+	chiaki_session_ctrl_set_display_sink(session, &sink);
+	chiaki_session_set_event_cb(session, su_kien_cb, ctx);
+	chiaki_session_set_video_sample_cb(session, chiaki_ffmpeg_decoder_video_sample_cb, &ctx->decoder);
+}
+
 static int hex_sang_byte(const char *hex, uint8_t *out, size_t out_size)
 {
 	size_t n = strlen(hex);
@@ -363,8 +384,7 @@ static int lenh_chup(ChiakiLog *log, int argc, char **argv)
 		chiaki_ffmpeg_decoder_fini(&ctx.decoder);
 		return 2;
 	}
-	chiaki_session_set_event_cb(&session, su_kien_cb, &ctx);
-	chiaki_session_set_video_sample_cb(&session, chiaki_ffmpeg_decoder_video_sample_cb, &ctx.decoder);
+	gan_bo_nhan(&session, &ctx);
 
 	err = chiaki_session_start(&session);
 	if(err != CHIAKI_ERR_SUCCESS)
@@ -529,8 +549,7 @@ static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 		if(err == CHIAKI_ERR_SUCCESS)
 		{
 			co_phien = true;
-			chiaki_session_set_event_cb(&session, su_kien_cb, &ctx);
-			chiaki_session_set_video_sample_cb(&session, chiaki_ffmpeg_decoder_video_sample_cb, &ctx.decoder);
+			gan_bo_nhan(&session, &ctx);
 			err = chiaki_session_start(&session);
 		}
 		if(err != CHIAKI_ERR_SUCCESS)
