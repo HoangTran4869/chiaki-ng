@@ -1,0 +1,37 @@
+name: Build app TV (Android)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "tvapp/**"
+      - ".github/workflows/build-tv.yml"
+
+jobs:
+  build-tv:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Build APK
+        run: gradle -p tvapp assembleRelease --no-daemon --stacktrace
+      - name: Push APK to branch ban-tv (cai bang Downloader tren TV)
+        run: |
+          mkdir out
+          cp tvapp/app/build/outputs/apk/release/app-release.apk out/DichGameTV.apk
+          echo "${{ github.sha }}" > out/commit.txt
+          cd out
+          git init -q
+          git checkout -q -b ban-tv
+          git add .
+          git -c user.name=ci -c user.email=ci@example.com commit -q -m "tv ${{ github.sha }}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ban-tv
