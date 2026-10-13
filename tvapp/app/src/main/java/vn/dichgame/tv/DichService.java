@@ -275,15 +275,22 @@ public class DichService extends Service {
                     int sm = m == null ? 0 : m.length();
                     String[] bc = new String[sm];
                     float[][] bh = new float[sm][4];
+                    float[][] bo = new float[sm][];
                     for (int i = 0; i < sm; i++) {
                         JSONObject x = m.getJSONObject(i);
                         bc[i] = x.optString("chu");
                         JSONArray hp = x.getJSONArray("hop");
                         for (int j = 0; j < 4; j++) bh[i][j] = (float) hp.optDouble(j);
+                        JSONArray op = x.optJSONArray("o");          // 0.9: cho dat bong bong do may tinh tinh san
+                        if (op != null && op.length() == 4) {
+                            bo[i] = new float[4];
+                            for (int j = 0; j < 4; j++) bo[i][j] = (float) op.optDouble(j);
+                        }
                     }
-                    ui.post(() -> { batLop(); if (lop != null) lop.datBongBong(bc, bh); });
+                    float bco = (float) o.optDouble("co", 1.0);
+                    ui.post(() -> { batLop(); if (lop != null) lop.datBongBong(bc, bh, bo, bco); });
                 } else if (loai.equals("xoa_bong_bong")) {
-                    ui.post(() -> { if (lop != null) lop.datBongBong(null, null); });
+                    ui.post(() -> { if (lop != null) lop.datBongBong(null, null, null, 1f); });
                 } else if (loai.equals("xoa")) {
                     ui.post(() -> { if (lop != null) lop.xoa(); });
                 } else if (loai.equals("ping")) {

@@ -3,7 +3,9 @@ package vn.dichgame.tv;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.DashPathEffect;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Typeface;
 import android.text.Layout;
 import android.text.StaticLayout;
@@ -34,34 +36,120 @@ public class LopChu extends View {
         nenBb.setColor(Color.argb(232, 24, 26, 32));
     }
 
-    public void datBongBong(String[] c, float[][] h) {
+    private float[][] bbO = null;            // 0.9: cho dat bong bong (may tinh tinh san, giong cua so app)
+    private float bbCo = 1f;
+
+    public void datBongBong(String[] c, float[][] h, float[][] o, float co) {
         bbChu = c;
         bbHop = h;
+        bbO = o;
+        bbCo = co > 0 ? co : 1f;
         postInvalidate();
     }
 
-    /** Moi doan dich: o nen toi bo goc DE DUNG LEN cho chu goc (rong it nhat bang doan goc), chu trang. */
+    /** 0.9: GIONG cua so app tren may tinh - bong bong trang chu den DAT CANH doan goc (khong de len chu goc, khong
+     *  de len loi thoai), duoi nhon chi ve doan goc, vien vang net dut quanh doan goc. */
     private void veBongBong(Canvas cv, int w, int h) {
         if (bbChu == null || bbHop == null) return;
+        int n = Math.min(bbChu.length, bbHop.length);
+        float co0 = h * 0.024f * bbCo;
+        float s = co0 / 18f;
+        Paint vang = new Paint(Paint.ANTI_ALIAS_FLAG);
+        vang.setColor(Color.rgb(255, 224, 138));
+        vang.setStyle(Paint.Style.STROKE);
+        vang.setStrokeWidth(Math.max(2f, 2f * s));
+        vang.setPathEffect(new DashPathEffect(new float[]{6 * s, 4 * s}, 0));
+        Paint nen = new Paint(Paint.ANTI_ALIAS_FLAG);
+        nen.setColor(Color.WHITE);
+        Paint vienBb = new Paint(Paint.ANTI_ALIAS_FLAG);
+        vienBb.setColor(Color.rgb(17, 17, 17));
+        vienBb.setStyle(Paint.Style.STROKE);
+        vienBb.setStrokeWidth(Math.max(2f, 2f * s));
+        Paint bong = new Paint(Paint.ANTI_ALIAS_FLAG);
+        bong.setColor(Color.argb(150, 42, 42, 42));
+        for (int i = 0; i < n; i++) {
+            float nx1 = bbHop[i][0] * w, ny1 = bbHop[i][1] * h, nx2 = bbHop[i][2] * w, ny2 = bbHop[i][3] * h;
+            if (bbO == null || i >= bbO.length || bbO[i] == null) {
+                veBongBongCu(cv, w, h, bbChu[i], nx1, ny1, nx2);
+                continue;
+            }
+            float x1 = bbO[i][0] * w, y1 = bbO[i][1] * h, x2 = bbO[i][2] * w, y2 = bbO[i][3] * h;
+            float pad = 5 * s;
+            cv.drawRect(nx1 - pad, ny1 - pad, nx2 + pad, ny2 + pad, vang);
+            // chu: vua khung da tinh (font TV hoi khac may tinh -> thu nho dan neu tran)
+            TextPaint p = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+            p.setColor(Color.rgb(17, 17, 17));
+            p.setTypeface(Typeface.DEFAULT_BOLD);
+            int rongChu = (int) Math.max(40, (x2 - x1) - 36 * s);
+            float caoCho = (y2 - y1) - 24 * s;
+            float co = co0;
+            StaticLayout l = null;
+            for (int t = 0; t < 8; t++) {
+                p.setTextSize(co);
+                l = StaticLayout.Builder.obtain(bbChu[i], 0, bbChu[i].length(), p, rongChu)
+                        .setAlignment(Layout.Alignment.ALIGN_CENTER).build();
+                if (l.getHeight() <= caoCho || co < co0 * 0.6f) break;
+                co *= 0.92f;
+            }
+            float r = Math.min(22 * s, (y2 - y1) / 2.5f);
+            // duoi nhon chi ve doan goc
+            float gx = (nx1 + nx2) / 2f, gy = (ny1 + ny2) / 2f, rd = 8 * s;
+            float bx, by, mx, my, ax, ay, cx2, cy2;
+            if (gx >= x2 || gx <= x1) {
+                bx = gx >= x2 ? x2 : x1;
+                by = Math.min(Math.max(gy, y1 + r + rd), y2 - r - rd);
+                ax = bx; ay = by - rd; cx2 = bx; cy2 = by + rd;
+                mx = gx >= x2 ? nx1 - 6 * s : nx2 + 6 * s;
+                my = Math.min(Math.max(by, ny1 + 4), ny2 - 4);
+            } else {
+                by = gy >= y2 ? y2 : y1;
+                bx = Math.min(Math.max(gx, x1 + r + rd), x2 - r - rd);
+                ax = bx - rd; ay = by; cx2 = bx + rd; cy2 = by;
+                my = gy >= y2 ? ny1 - 6 * s : ny2 + 6 * s;
+                mx = Math.min(Math.max(bx, nx1 + 4), nx2 - 4);
+            }
+            float dx = mx - bx, dy = my - by;
+            float dai = (float) Math.max(1.0, Math.hypot(dx, dy));
+            float dd = Math.min(dai, 40 * s);
+            float tx = bx + dx / dai * dd, ty = by + dy / dai * dd;
+            Path duoi = new Path();
+            duoi.moveTo(ax, ay);
+            duoi.lineTo(tx, ty);
+            duoi.lineTo(cx2, cy2);
+            duoi.close();
+            cv.drawRoundRect(x1 + 4 * s, y1 + 5 * s, x2 + 4 * s, y2 + 5 * s, r, r, bong);
+            cv.drawPath(duoi, nen);
+            cv.drawPath(duoi, vienBb);
+            cv.drawRoundRect(x1, y1, x2, y2, r, r, nen);
+            cv.drawRoundRect(x1, y1, x2, y2, r, r, vienBb);
+            Paint lap = new Paint(Paint.ANTI_ALIAS_FLAG);          // xoa vach vien o chan duoi
+            lap.setColor(Color.WHITE);
+            lap.setStrokeWidth(4 * s);
+            cv.drawLine(ax, ay, cx2, cy2, lap);
+            cv.save();
+            cv.translate(x1 + 18 * s, (y1 + y2) / 2f - l.getHeight() / 2f);
+            l.draw(cv);
+            cv.restore();
+        }
+    }
+
+    /** Ban cu (may tinh chua cap nhat): o toi de len cho chu goc. */
+    private void veBongBongCu(Canvas cv, int w, int h, String chu, float x1, float y1, float x2) {
         float co = h * 0.024f * tiLe;
         TextPaint p = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         p.setColor(Color.WHITE);
         p.setTextSize(co);
-        int n = Math.min(bbChu.length, bbHop.length);
-        for (int i = 0; i < n; i++) {
-            float x1 = bbHop[i][0] * w, y1 = bbHop[i][1] * h, x2 = bbHop[i][2] * w;
-            int rong = (int) Math.max(x2 - x1, w * 0.18f);
-            StaticLayout l = StaticLayout.Builder.obtain(bbChu[i], 0, bbChu[i].length(), p, rong)
-                    .setAlignment(Layout.Alignment.ALIGN_NORMAL).build();
-            float pad = co * 0.35f;
-            float trai = Math.max(pad, Math.min(w - rong - pad, x1));
-            float tren = Math.max(pad, Math.min(h - l.getHeight() - pad, y1));
-            cv.drawRoundRect(trai - pad, tren - pad, trai + rong + pad, tren + l.getHeight() + pad, pad, pad, nenBb);
-            cv.save();
-            cv.translate(trai, tren);
-            l.draw(cv);
-            cv.restore();
-        }
+        int rong = (int) Math.max(x2 - x1, w * 0.18f);
+        StaticLayout l = StaticLayout.Builder.obtain(chu, 0, chu.length(), p, rong)
+                .setAlignment(Layout.Alignment.ALIGN_NORMAL).build();
+        float pad = co * 0.35f;
+        float trai = Math.max(pad, Math.min(w - rong - pad, x1));
+        float tren = Math.max(pad, Math.min(h - l.getHeight() - pad, y1));
+        cv.drawRoundRect(trai - pad, tren - pad, trai + rong + pad, tren + l.getHeight() + pad, pad, pad, nenBb);
+        cv.save();
+        cv.translate(trai, tren);
+        l.draw(cv);
+        cv.restore();
     }
 
     public void datPhuDe(String c, float[] k) {
