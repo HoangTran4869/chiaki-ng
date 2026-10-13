@@ -9,6 +9,9 @@
 //       Tim PS4/PS5 trong mang nha, in moi may 1 dong JSON.
 //   cau-noi chup --host IP --regist-key HEX --morning HEX --out anh.bmp [--ps4] [--giay N]
 //       Ket noi PS5, cho hinh on dinh, luu 1 khung hinh ra file BMP roi ngat.
+//   cau-noi dang_ky --host IP --account HEX16 --pin 12345678 [--ps4]
+//       Ghep doi (Link Device) voi PS5 bang ma 8 so tren PS5. In 1 dong JSON:
+//       {"ok":true,"regist_key":HEX,"morning":HEX,"ten":...,"mac":HEX} hoac {"ok":false,"loi":...}
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -27,6 +30,7 @@ static void ngu_ms(unsigned ms) { usleep(ms * 1000); }
 #include <chiaki/discovery.h>
 #include <chiaki/session.h>
 #include <chiaki/ffmpegdecoder.h>
+#include <chiaki/regist.h>
 
 #include <libavutil/frame.h>
 #include <libavutil/pixfmt.h>
@@ -620,6 +624,102 @@ static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 	return 0;
 }
 
+// ---------------------------------------------------------------- dang ky (ghep doi)
+
+typedef struct
+{
+	ChiakiMutex mutex;
+	ChiakiCond cond;
+	bool xong;
+	ChiakiRegistEventType kieu;
+	ChiakiRegisteredHost may;
+} DangKy;
+
+static void dang_ky_cb(ChiakiRegistEvent *ev, void *user)
+{
+	DangKy *dk = user;
+	chiaki_mutex_lock(&dk->mutex);
+	dk->kieu = ev->type;
+	if(ev->type == CHIAKI_REGIST_EVENT_TYPE_FINISHED_SUCCESS && ev->registered_host)
+		dk->may = *ev->registered_host;
+	dk->xong = true;
+	chiaki_mutex_unlock(&dk->mutex);
+	chiaki_cond_signal(&dk->cond);
+}
+
+static void in_hex(const uint8_t *b, size_t n)
+{
+	for(size_t i = 0; i < n; i++)
+		printf("%02x", b[i]);
+}
+
+static int lenh_dang_ky(ChiakiLog *log, int argc, char **argv)
+{
+	const char *host = lay_tham_so(argc, argv, "--host");
+	const char *account_hex = lay_tham_so(argc, argv, "--account");
+	const char *pin_s = lay_tham_so(argc, argv, "--pin");
+	bool ps4 = co_co(argc, argv, "--ps4");
+	if(!host || !account_hex || !pin_s)
+	{
+		printf("{\"ok\":false,\"loi\":\"thieu tham so\"}\n");
+		return 1;
+	}
+	ChiakiRegistInfo info;
+	memset(&info, 0, sizeof(info));
+	info.target = ps4 ? CHIAKI_TARGET_PS4_10 : CHIAKI_TARGET_PS5_1;
+	info.host = host;
+	info.broadcast = false;
+	info.psn_online_id = NULL;
+	if(hex_sang_byte(account_hex, info.psn_account_id, CHIAKI_PSN_ACCOUNT_ID_SIZE) != 0)
+	{
+		printf("{\"ok\":false,\"loi\":\"account sai\"}\n");
+		return 1;
+	}
+	info.pin = (uint32_t)strtoul(pin_s, NULL, 10);
+	info.console_pin = 0;
+	info.holepunch_info = NULL;
+	info.rudp = NULL;
+
+	DangKy dk;
+	memset(&dk, 0, sizeof(dk));
+	chiaki_mutex_init(&dk.mutex, false);
+	chiaki_cond_init(&dk.cond);
+	ChiakiRegist regist;
+	if(chiaki_regist_start(&regist, log, &info, dang_ky_cb, &dk) != CHIAKI_ERR_SUCCESS)
+	{
+		printf("{\"ok\":false,\"loi\":\"khong bat dau duoc\"}\n");
+		return 2;
+	}
+	chiaki_mutex_lock(&dk.mutex);
+	for(int i = 0; i < 300 && !dk.xong; i++)          // toi da ~30 giay
+		chiaki_cond_timedwait(&dk.cond, &dk.mutex, 100);
+	bool xong = dk.xong;
+	chiaki_mutex_unlock(&dk.mutex);
+	if(!xong)
+		chiaki_regist_stop(&regist);
+	chiaki_regist_fini(&regist);
+
+	if(xong && dk.kieu == CHIAKI_REGIST_EVENT_TYPE_FINISHED_SUCCESS)
+	{
+		printf("{\"ok\":true,\"regist_key\":\"");
+		in_hex((const uint8_t *)dk.may.rp_regist_key, sizeof(dk.may.rp_regist_key));
+		printf("\",\"morning\":\"");
+		in_hex(dk.may.rp_key, sizeof(dk.may.rp_key));
+		printf("\",\"ten\":");
+		dk.may.server_nickname[sizeof(dk.may.server_nickname) - 1] = 0;
+		in_json_chuoi(dk.may.server_nickname);
+		printf(",\"mac\":\"");
+		in_hex(dk.may.server_mac, sizeof(dk.may.server_mac));
+		printf("\",\"target\":%d}\n", (int)dk.may.target);
+		fflush(stdout);
+		return 0;
+	}
+	printf("{\"ok\":false,\"loi\":\"%s\"}\n", !xong ? "het gio" :
+		(dk.kieu == CHIAKI_REGIST_EVENT_TYPE_FINISHED_CANCELED ? "huy" : "that bai"));
+	fflush(stdout);
+	return 3;
+}
+
 // ---------------------------------------------------------------- main
 
 int main(int argc, char **argv)
@@ -630,7 +730,8 @@ int main(int argc, char **argv)
 				"cau-noi (dua tren chiaki-ng, AGPL-3.0)\n"
 				"  cau-noi tim [--giay N]\n"
 				"  cau-noi chup --host IP --regist-key HEX --morning HEX --out anh.bmp [--ps4] [--giay N]\n"
-				"  cau-noi phat --host IP --regist-key HEX --morning HEX [--ps4]   (stdin: H=xin hinh, Q=thoat)\n");
+				"  cau-noi phat --host IP --regist-key HEX --morning HEX [--ps4]   (stdin: H=xin hinh, Q=thoat)\n"
+				"  cau-noi dang_ky --host IP --account HEX16 --pin 12345678 [--ps4]\n");
 		return 1;
 	}
 
@@ -651,6 +752,8 @@ int main(int argc, char **argv)
 		return lenh_chup(&log, argc, argv);
 	if(strcmp(argv[1], "phat") == 0)
 		return lenh_phat(&log, argc, argv);
+	if(strcmp(argv[1], "dang_ky") == 0)
+		return lenh_dang_ky(&log, argc, argv);
 
 	fprintf(stderr, "Lenh khong ro: %s\n", argv[1]);
 	return 1;
