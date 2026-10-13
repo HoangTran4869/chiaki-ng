@@ -102,7 +102,7 @@ public class MainActivity extends Activity {
         TextView dau = new TextView(this);
         dau.setTextColor(Color.WHITE);
         dau.setTextSize(24);
-        dau.setText("DỊCH GAME TV — BẢN THỬ 0.1\n" + Build.MANUFACTURER + " " + Build.MODEL
+        dau.setText("DỊCH GAME TV — BẢN THỬ 0.2\n" + Build.MANUFACTURER + " " + Build.MODEL
                 + " · Android " + Build.VERSION.RELEASE + " (SDK " + Build.VERSION.SDK_INT + ")");
         menu.addView(dau);
 
@@ -120,7 +120,7 @@ public class MainActivity extends Activity {
                         + " | passthrough=" + info.isPassthroughInput() + " | id=" + info.getId());
                 if (hdmi || info.isPassthroughInput()) {
                     final String id = info.getId();
-                    nut("▶ Mở trong app: " + ten, v -> moHdmi(id, String.valueOf(ten)));
+                    nut("▶ Cách 1: mở trong app " + ten, v -> moHdmi(id, String.valueOf(ten)));
                 }
             }
         }
@@ -142,13 +142,13 @@ public class MainActivity extends Activity {
         nut("🗣 Đọc thử tiếng Việt (giọng của TV)", v -> docThu());
 
         // ---- 3) chu noi (overlay) ----
-        nut("🪟 Thử CHỮ NỔI trên HDMI (cách đối thủ)", v -> chuNoiBat());
+        nut("🪟 Cách 2: thử CHỮ NỔI trên HDMI", v -> chuNoiBat());
         nut("✖ Tắt chữ nổi", v -> chuNoiTat());
 
         TextView hd = new TextView(this);
         hd.setTextColor(Color.rgb(255, 224, 138));
         hd.setTextSize(18);
-        hd.setText("\nĐang xem hình HDMI: bấm BACK để hiện lại menu này. Ở menu bấm BACK lần nữa để thoát app.\n");
+        hd.setText("\nKết quả thử ghi ở cuối trang (kéo xuống). Đang xem hình HDMI: bấm BACK để hiện lại menu này. Ở menu bấm BACK lần nữa để thoát app.\n");
         menu.addView(hd);
 
         nhatKy = new TextView(this);
