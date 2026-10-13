@@ -230,6 +230,7 @@ public class DichService extends Service {
                         pref().edit().putStringSet("may_da_dong_y", ds).apply();
                     }
                     daDongY = true;
+                    s.setSoTimeout(15000);   // 0.10: may tinh ping 4 giay/lan; 15 giay im lang = may tinh da tat / mat mang
                     JSONObject tl = new JSONObject().put("loai", "chao_lai").put("dong_y", true)
                             .put("ten_tv", tenTv(this));
                     gui(ra, tl);
@@ -304,7 +305,9 @@ public class DichService extends Service {
             if (khach == s) {
                 khach = null;
                 trangThai = "Mất kết nối với " + tenMay + " — đang chờ máy tính…";
-                ui.post(() -> { if (lop != null) lop.xoa(); });
+                if (loa != null) loa.dung();
+                // 0.10: tat app may tinh / mat ket noi -> xoa HET (phu de + ban dich toan man hinh)
+                ui.post(() -> { if (lop != null) { lop.xoa(); lop.datBongBong(null, null, null, 1f); } });
             }
         }
     }
