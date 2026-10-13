@@ -17,6 +17,9 @@ public class LopChu extends View {
     private String[] dongChu = null;       // 13/10: tung dong de dung len tung dong phu de Anh
     private float[][] dongHop = null;
     private float tiLe = 1f;                 // A- / A+ tren app may tinh
+    private String[] bbChu = null;           // 13/10 buoc 3: ban dich toan man hinh (de len cho chu goc)
+    private float[][] bbHop = null;
+    private final Paint nenBb = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint net = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint vien = new TextPaint(Paint.ANTI_ALIAS_FLAG);
 
@@ -28,6 +31,37 @@ public class LopChu extends View {
         vien.setTypeface(Typeface.DEFAULT_BOLD);
         vien.setStyle(Paint.Style.STROKE);
         vien.setStrokeJoin(Paint.Join.ROUND);
+        nenBb.setColor(Color.argb(232, 24, 26, 32));
+    }
+
+    public void datBongBong(String[] c, float[][] h) {
+        bbChu = c;
+        bbHop = h;
+        postInvalidate();
+    }
+
+    /** Moi doan dich: o nen toi bo goc DE DUNG LEN cho chu goc (rong it nhat bang doan goc), chu trang. */
+    private void veBongBong(Canvas cv, int w, int h) {
+        if (bbChu == null || bbHop == null) return;
+        float co = h * 0.024f * tiLe;
+        TextPaint p = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(Color.WHITE);
+        p.setTextSize(co);
+        int n = Math.min(bbChu.length, bbHop.length);
+        for (int i = 0; i < n; i++) {
+            float x1 = bbHop[i][0] * w, y1 = bbHop[i][1] * h, x2 = bbHop[i][2] * w;
+            int rong = (int) Math.max(x2 - x1, w * 0.18f);
+            StaticLayout l = StaticLayout.Builder.obtain(bbChu[i], 0, bbChu[i].length(), p, rong)
+                    .setAlignment(Layout.Alignment.ALIGN_NORMAL).build();
+            float pad = co * 0.35f;
+            float trai = Math.max(pad, Math.min(w - rong - pad, x1));
+            float tren = Math.max(pad, Math.min(h - l.getHeight() - pad, y1));
+            cv.drawRoundRect(trai - pad, tren - pad, trai + rong + pad, tren + l.getHeight() + pad, pad, pad, nenBb);
+            cv.save();
+            cv.translate(trai, tren);
+            l.draw(cv);
+            cv.restore();
+        }
     }
 
     public void datPhuDe(String c, float[] k) {
@@ -54,9 +88,10 @@ public class LopChu extends View {
 
     @Override
     protected void onDraw(Canvas cv) {
-        if (chu.isEmpty()) return;
         int w = getWidth(), h = getHeight();
         if (w <= 0 || h <= 0) return;
+        veBongBong(cv, w, h);
+        if (chu.isEmpty()) return;
         if (dongChu != null && dongHop != null && dongChu.length > 0) {
             veTungDong(cv, w, h);
             return;

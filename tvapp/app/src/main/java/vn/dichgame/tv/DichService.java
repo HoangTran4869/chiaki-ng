@@ -47,6 +47,7 @@ public class DichService extends Service {
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private LopChu lop;
+    private Loa loa;
     private volatile boolean chay = true;
     private ServerSocket server;
     private DatagramSocket udp;
@@ -196,6 +197,13 @@ public class DichService extends Service {
                 byte[] b = new byte[n];
                 vao.readFully(b);
                 JSONObject o = new JSONObject(new String(b, StandardCharsets.UTF_8));
+                byte[] nhiPhan = null;                          // giong doc: PCM di ngay sau JSON
+                int nb = o.optInt("bytes", 0);
+                if (nb > 0) {
+                    if (nb > 50_000_000) throw new Exception("goi tin qua lon");
+                    nhiPhan = new byte[nb];
+                    vao.readFully(nhiPhan);
+                }
                 String loai = o.optString("loai");
                 if (loai.equals("chao")) {
                     tenMay = o.optString("ten", "máy tính");
@@ -255,6 +263,27 @@ public class DichService extends Service {
                     final float[][] dhF = dh;
                     final float tl = (float) o.optDouble("co", 1.0);
                     ui.post(() -> { batLop(); if (lop != null) lop.datPhuDe(chu, khF, dcF, dhF, tl); });
+                } else if (loai.equals("giong")) {
+                    if (nhiPhan != null) {
+                        if (loa == null) loa = new Loa();
+                        loa.phat(nhiPhan);
+                    }
+                } else if (loai.equals("dung_giong")) {
+                    if (loa != null) loa.dung();
+                } else if (loai.equals("bong_bong")) {
+                    JSONArray m = o.optJSONArray("muc");
+                    int n = m == null ? 0 : m.length();
+                    String[] bc = new String[n];
+                    float[][] bh = new float[n][4];
+                    for (int i = 0; i < n; i++) {
+                        JSONObject x = m.getJSONObject(i);
+                        bc[i] = x.optString("chu");
+                        JSONArray hp = x.getJSONArray("hop");
+                        for (int j = 0; j < 4; j++) bh[i][j] = (float) hp.optDouble(j);
+                    }
+                    ui.post(() -> { batLop(); if (lop != null) lop.datBongBong(bc, bh); });
+                } else if (loai.equals("xoa_bong_bong")) {
+                    ui.post(() -> { if (lop != null) lop.datBongBong(null, null); });
                 } else if (loai.equals("xoa")) {
                     ui.post(() -> { if (lop != null) lop.xoa(); });
                 } else if (loai.equals("ping")) {
