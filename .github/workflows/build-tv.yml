@@ -23,11 +23,15 @@ jobs:
         with:
           gradle-version: "8.9"
       - name: Build APK
-        run: gradle -p tvapp assembleRelease --no-daemon --stacktrace
-      - name: Push APK to branch ban-tv (cai bang Downloader tren TV)
+        run: |
+          set -o pipefail
+          gradle -p tvapp assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+      - name: Push APK + build.log to branch ban-tv (cai bang Downloader tren TV)
+        if: always()
         run: |
           mkdir out
-          cp tvapp/app/build/outputs/apk/release/app-release.apk out/DichGameTV.apk
+          cp build.log out/build.log || true
+          cp tvapp/app/build/outputs/apk/release/app-release.apk out/DichGameTV.apk || true
           echo "${{ github.sha }}" > out/commit.txt
           cd out
           git init -q
