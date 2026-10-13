@@ -2,14 +2,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-    <uses-feature android:name="android.software.live_tv" android:required="false" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="com.android.providers.tv.permission.READ_EPG_DATA" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application
         android:label="Dịch Game TV"
         android:icon="@android:drawable/sym_def_app_icon"
         android:banner="@drawable/banner"
+        android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         <activity android:name=".MainActivity" android:exported="true"
             android:screenOrientation="landscape" android:launchMode="singleTask">
@@ -19,5 +23,9 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".XacNhanActivity" android:exported="false"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog.NoActionBar"
+            android:excludeFromRecents="true" android:launchMode="singleTask" />
+        <service android:name=".DichService" android:exported="false" />
     </application>
 </manifest>
