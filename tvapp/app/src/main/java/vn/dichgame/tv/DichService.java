@@ -272,10 +272,10 @@ public class DichService extends Service {
                     if (loa != null) loa.dung();
                 } else if (loai.equals("bong_bong")) {
                     JSONArray m = o.optJSONArray("muc");
-                    int n = m == null ? 0 : m.length();
-                    String[] bc = new String[n];
-                    float[][] bh = new float[n][4];
-                    for (int i = 0; i < n; i++) {
+                    int sm = m == null ? 0 : m.length();
+                    String[] bc = new String[sm];
+                    float[][] bh = new float[sm][4];
+                    for (int i = 0; i < sm; i++) {
                         JSONObject x = m.getJSONObject(i);
                         bc[i] = x.optString("chu");
                         JSONArray hp = x.getJSONArray("hop");
