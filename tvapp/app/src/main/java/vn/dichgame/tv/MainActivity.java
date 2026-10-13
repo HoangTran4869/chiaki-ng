@@ -104,7 +104,7 @@ public class MainActivity extends Activity {
         TextView dau = new TextView(this);
         dau.setTextColor(Color.WHITE);
         dau.setTextSize(24);
-        dau.setText("DỊCH GAME TV — BẢN THỬ 0.3\n" + Build.MANUFACTURER + " " + Build.MODEL
+        dau.setText("DỊCH GAME TV — BẢN THỬ 0.4\n" + Build.MANUFACTURER + " " + Build.MODEL
                 + " · Android " + Build.VERSION.RELEASE + " (SDK " + Build.VERSION.SDK_INT + ")");
         menu.addView(dau);
 
@@ -141,9 +141,10 @@ public class MainActivity extends Activity {
                 + " đoạn game có tiếng. Chữ nổi sẽ báo lúc bắt đầu thử: nghe xem tiếng GAME có nhỏ đi trong lúc"
                 + " app phát giọng không. (Cần bật quyền chữ nổi trước: bấm nút 'Cách 2' 1 lần.)");
         menu.addView(hd3);
-        nut("🅰 Thử A: xin TV nhường tiếng (nhỏ bớt)", v -> thuHaTieng("A"));
-        nut("🅱 Thử B: xin TV nhường tiếng (tắt hẳn)", v -> thuHaTieng("B"));
-        nut("🅲 Thử C: hạ âm lượng TV, giọng đọc kênh riêng", v -> thuHaTieng("C"));
+        // 0.4: A/B (nhuong tieng) TCL bo qua -> chi con C; thu 3 muc ha + giong o kenh rieng duoc nang to
+        nut("🅲 Thử C70: game còn 70%, giọng đọc to", v -> thuHaTieng("C70"));
+        nut("🅲 Thử C50: game còn 50%, giọng đọc to", v -> thuHaTieng("C50"));
+        nut("🅲 Thử C30: game còn 30%, giọng đọc to", v -> thuHaTieng("C30"));
         nut("⚡ Bíp NGAY (đo độ trễ tiếng)", v -> bipNhanh());
         nut("🔈 Phát tiếng bíp 1 giây", v -> phatBip());
         tts = new TextToSpeech(this, st -> ghi(st == TextToSpeech.SUCCESS ? "Giọng đọc của TV: sẵn sàng"
@@ -324,6 +325,7 @@ public class MainActivity extends Activity {
                 AudioFocusRequest xin = null;
                 int amCu = am.getStreamVolume(AudioManager.STREAM_MUSIC);
                 int usage = AudioAttributes.USAGE_ASSISTANT;
+                int baoCu = am.getStreamVolume(AudioManager.STREAM_ALARM);
                 if (cach.equals("A") || cach.equals("B")) {
                     xin = new AudioFocusRequest.Builder(cach.equals("A")
                             ? AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK : AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
@@ -334,8 +336,11 @@ public class MainActivity extends Activity {
                     kq.append("xin nhường tiếng = ").append(r == AudioManager.AUDIOFOCUS_REQUEST_GRANTED ? "được" : "bị từ chối (" + r + ")");
                 } else {
                     usage = AudioAttributes.USAGE_ALARM;
-                    int amMoi = Math.max(1, amCu / 4);
+                    int phan = Integer.parseInt(cach.substring(1));
+                    int amMoi = Math.max(1, amCu * phan / 100);
                     am.setStreamVolume(AudioManager.STREAM_MUSIC, amMoi, 0);
+                    int baoMax = am.getStreamMaxVolume(AudioManager.STREAM_ALARM);   // giong doc: kenh rieng, nang to
+                    am.setStreamVolume(AudioManager.STREAM_ALARM, Math.max(1, baoMax * 85 / 100), 0);
                     kq.append("âm lượng TV ").append(amCu).append(" → ").append(amMoi)
                             .append(", kênh báo thức = ").append(am.getStreamVolume(AudioManager.STREAM_ALARM))
                             .append("/").append(am.getStreamMaxVolume(AudioManager.STREAM_ALARM));
@@ -345,13 +350,16 @@ public class MainActivity extends Activity {
                 Thread.sleep(4300);
                 at.release();
                 if (xin != null) am.abandonAudioFocusRequest(xin);
-                if (cach.equals("C")) am.setStreamVolume(AudioManager.STREAM_MUSIC, amCu, 0);
+                if (cach.startsWith("C")) {
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, amCu, 0);
+                    am.setStreamVolume(AudioManager.STREAM_ALARM, baoCu, 0);
+                }
                 hienNoi("XONG THỬ " + cach + " - tiếng game đã trả lại bình thường");
                 Thread.sleep(3000);
                 runOnUiThread(this::chuNoiTat);
             } catch (Throwable t) {
                 kq.append(" ❌ lỗi ").append(t);
-                try { if (cach.equals("C")) am.setStreamVolume(AudioManager.STREAM_MUSIC, amGoc, 0); }
+                try { if (cach.startsWith("C")) am.setStreamVolume(AudioManager.STREAM_MUSIC, amGoc, 0); }
                 catch (Throwable ignored) { }
             }
             runOnUiThread(() -> ghi(kq.toString()));
