@@ -238,7 +238,22 @@ public class DichService extends Service {
                         for (int i = 0; i < 4; i++) kh[i] = (float) k.optDouble(i);
                     }
                     final float[] khF = kh;
-                    ui.post(() -> { batLop(); if (lop != null) lop.datPhuDe(chu, khF); });
+                    JSONArray d = o.optJSONArray("dong");
+                    String[] dc = null;
+                    float[][] dh = null;
+                    if (d != null && d.length() > 0) {
+                        dc = new String[d.length()];
+                        dh = new float[d.length()][4];
+                        for (int i = 0; i < d.length(); i++) {
+                            JSONObject m = d.getJSONObject(i);
+                            dc[i] = m.optString("chu");
+                            JSONArray hp = m.getJSONArray("hop");
+                            for (int j = 0; j < 4; j++) dh[i][j] = (float) hp.optDouble(j);
+                        }
+                    }
+                    final String[] dcF = dc;
+                    final float[][] dhF = dh;
+                    ui.post(() -> { batLop(); if (lop != null) lop.datPhuDe(chu, khF, dcF, dhF); });
                 } else if (loai.equals("xoa")) {
                     ui.post(() -> { if (lop != null) lop.xoa(); });
                 } else if (loai.equals("ping")) {

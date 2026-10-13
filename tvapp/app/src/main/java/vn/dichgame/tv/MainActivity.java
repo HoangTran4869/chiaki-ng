@@ -22,7 +22,7 @@ import java.util.Collections;
 
 /** Man hinh chinh app TV: trang thai ket noi + cap quyen chu noi + chu thu. Chay ngam = DichService. */
 public class MainActivity extends Activity {
-    static final String PHIEN_BAN = "0.5";
+    static final String PHIEN_BAN = "0.6";
     private TextView trangThai;
     private Button nutQuyen;
     private final Handler h = new Handler(Looper.getMainLooper());
