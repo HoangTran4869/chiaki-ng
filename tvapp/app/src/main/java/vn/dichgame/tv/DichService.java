@@ -253,7 +253,8 @@ public class DichService extends Service {
                     }
                     final String[] dcF = dc;
                     final float[][] dhF = dh;
-                    ui.post(() -> { batLop(); if (lop != null) lop.datPhuDe(chu, khF, dcF, dhF); });
+                    final float tl = (float) o.optDouble("co", 1.0);
+                    ui.post(() -> { batLop(); if (lop != null) lop.datPhuDe(chu, khF, dcF, dhF, tl); });
                 } else if (loai.equals("xoa")) {
                     ui.post(() -> { if (lop != null) lop.xoa(); });
                 } else if (loai.equals("ping")) {

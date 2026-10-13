@@ -16,6 +16,7 @@ public class LopChu extends View {
     private float[] khung = null;          // ti le 0-1: x1, y1, x2, y2 (theo hinh PS5 = ca man hinh TV)
     private String[] dongChu = null;       // 13/10: tung dong de dung len tung dong phu de Anh
     private float[][] dongHop = null;
+    private float tiLe = 1f;                 // A- / A+ tren app may tinh
     private final TextPaint net = new TextPaint(Paint.ANTI_ALIAS_FLAG);
     private final TextPaint vien = new TextPaint(Paint.ANTI_ALIAS_FLAG);
 
@@ -31,6 +32,11 @@ public class LopChu extends View {
 
     public void datPhuDe(String c, float[] k) {
         datPhuDe(c, k, null, null);
+    }
+
+    public void datPhuDe(String c, float[] k, String[] dc, float[][] dh, float tl) {
+        tiLe = tl > 0 ? tl : 1f;
+        datPhuDe(c, k, dc, dh);
     }
 
     public void datPhuDe(String c, float[] k, String[] dc, float[][] dh) {
@@ -55,7 +61,7 @@ public class LopChu extends View {
             veTungDong(cv, w, h);
             return;
         }
-        float co = h * 0.034f;
+        float co = h * 0.034f * tiLe;
         net.setTextSize(co);
         vien.setTextSize(co);
         vien.setStrokeWidth(co * 0.48f);       // vien DAY: cac chu chong len nhau thanh nen om sat chu
@@ -94,7 +100,7 @@ public class LopChu extends View {
             float gioiHan = Math.max((dongHop[i][2] - dongHop[i][0]) * w * 1.3f, w * 0.3f);
             if (doRong > gioiHan) thu = Math.min(thu, gioiHan / doRong);
         }
-        co = co * Math.max(0.7f, thu);
+        co = co * Math.max(0.7f, thu) * tiLe;
         net.setTextSize(co);
         vien.setTextSize(co);
         vien.setStrokeWidth(co * 0.48f);
