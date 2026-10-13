@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
+import android.media.AudioManager;
 import android.media.AudioFormat;
 import android.media.AudioTrack;
 import android.media.tv.TvContract;
@@ -102,7 +104,7 @@ public class MainActivity extends Activity {
         TextView dau = new TextView(this);
         dau.setTextColor(Color.WHITE);
         dau.setTextSize(24);
-        dau.setText("DỊCH GAME TV — BẢN THỬ 0.2\n" + Build.MANUFACTURER + " " + Build.MODEL
+        dau.setText("DỊCH GAME TV — BẢN THỬ 0.3\n" + Build.MANUFACTURER + " " + Build.MODEL
                 + " · Android " + Build.VERSION.RELEASE + " (SDK " + Build.VERSION.SDK_INT + ")");
         menu.addView(dau);
 
@@ -118,10 +120,7 @@ public class MainActivity extends Activity {
                 boolean hdmi = info.getType() == TvInputInfo.TYPE_HDMI;
                 ghi("• " + ten + " | loại " + info.getType() + (hdmi ? " (HDMI)" : "")
                         + " | passthrough=" + info.isPassthroughInput() + " | id=" + info.getId());
-                if (hdmi || info.isPassthroughInput()) {
-                    final String id = info.getId();
-                    nut("▶ Cách 1: mở trong app " + ten, v -> moHdmi(id, String.valueOf(ten)));
-                }
+
             }
         }
         tvView.setCallback(new TvView.TvInputCallback() {
@@ -134,8 +133,18 @@ public class MainActivity extends Activity {
         });
 
         // ---- 2) tieng ----
-        nut("🔉 Hạ tiếng HDMI còn 20%", v -> { tvView.setStreamVolume(0.2f); ghi("Đã hạ tiếng HDMI còn 20%"); });
-        nut("🔊 Trả tiếng HDMI 100%", v -> { tvView.setStreamVolume(1f); ghi("Đã trả tiếng HDMI 100%"); });
+        // 0.3 (13/10): anh chot CACH 2 (chu noi, HDMI giu nguyen - khong tang do tre). Thu cach HA TIENG GAME.
+        TextView hd3 = new TextView(this);
+        hd3.setTextColor(Color.rgb(255, 224, 138));
+        hd3.setTextSize(18);
+        hd3.setText("THỬ HẠ TIẾNG GAME: bấm 1 nút A/B/C → trong 8 giây chuyển sang HDMI 1 (nút Nguồn vào) và mở"
+                + " đoạn game có tiếng. Chữ nổi sẽ báo lúc bắt đầu thử: nghe xem tiếng GAME có nhỏ đi trong lúc"
+                + " app phát giọng không. (Cần bật quyền chữ nổi trước: bấm nút 'Cách 2' 1 lần.)");
+        menu.addView(hd3);
+        nut("🅰 Thử A: xin TV nhường tiếng (nhỏ bớt)", v -> thuHaTieng("A"));
+        nut("🅱 Thử B: xin TV nhường tiếng (tắt hẳn)", v -> thuHaTieng("B"));
+        nut("🅲 Thử C: hạ âm lượng TV, giọng đọc kênh riêng", v -> thuHaTieng("C"));
+        nut("⚡ Bíp NGAY (đo độ trễ tiếng)", v -> bipNhanh());
         nut("🔈 Phát tiếng bíp 1 giây", v -> phatBip());
         tts = new TextToSpeech(this, st -> ghi(st == TextToSpeech.SUCCESS ? "Giọng đọc của TV: sẵn sàng"
                 : "Giọng đọc của TV: KHÔNG có"));
@@ -244,6 +253,109 @@ public class MainActivity extends Activity {
             chuNoi = null;
             ghi("❌ Lỗi bật chữ nổi: " + t);
         }
+    }
+
+    // ================= 0.3: THU HA TIENG GAME + TIENG NHANH =================
+    private AudioTrack tiengNhanh;
+
+    private AudioTrack taoTieng(int usage, int giay) {
+        int rate = 44100, n = rate * giay;
+        short[] s = new short[n];
+        for (int i = 0; i < n; i++) {             // giong "noi": 2 not xen ke moi 0,25 giay
+            double f = ((i / (rate / 4)) % 2 == 0) ? 520 : 690;
+            s[i] = (short) (Math.sin(2 * Math.PI * f * i / rate) * 9000);
+        }
+        AudioTrack at = new AudioTrack.Builder()
+                .setAudioAttributes(new AudioAttributes.Builder().setUsage(usage)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                .setAudioFormat(new AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(rate).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
+                .setBufferSizeInBytes(n * 2).setTransferMode(AudioTrack.MODE_STATIC).build();
+        at.write(s, 0, n);
+        return at;
+    }
+
+    private void bipNhanh() {
+        try {
+            if (tiengNhanh == null) {                // tao san 1 lan -> lan sau phat ngay
+                int rate = 44100, n = rate / 3;
+                short[] s = new short[n];
+                for (int i = 0; i < n; i++) s[i] = (short) (Math.sin(2 * Math.PI * 880 * i / rate) * 9000);
+                tiengNhanh = new AudioTrack.Builder()
+                        .setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).build())
+                        .setAudioFormat(new AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                                .setSampleRate(rate).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
+                        .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
+                        .setBufferSizeInBytes(n * 2).setTransferMode(AudioTrack.MODE_STATIC).build();
+                tiengNhanh.write(s, 0, n);
+                ghi("Đã tạo sẵn tiếng bíp nhanh (bấm lại để nghe độ trễ thật)");
+            }
+            tiengNhanh.stop();
+            tiengNhanh.reloadStaticData();
+            tiengNhanh.play();
+        } catch (Throwable t) {
+            ghi("❌ Lỗi bíp nhanh: " + t);
+        }
+    }
+
+    private void hienNoi(String chu) {
+        runOnUiThread(() -> {
+            if (!Settings.canDrawOverlays(this)) return;
+            if (chuNoi == null) chuNoiBat();
+            if (chuNoi != null) chuNoi.setText(chu);
+        });
+    }
+
+    private void thuHaTieng(String cach) {
+        if (!Settings.canDrawOverlays(this)) {
+            ghi("Cần bật quyền chữ nổi trước (bấm nút 'Cách 2' 1 lần)");
+            chuNoiBat();
+            return;
+        }
+        ghi("Thử " + cach + ": 8 giây nữa bắt đầu - chuyển sang HDMI 1 ngay");
+        hienNoi("THỬ " + cach + " sau 8 giây - chuyển sang HDMI 1 và mở đoạn game có tiếng");
+        new Thread(() -> {
+            AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+            StringBuilder kq = new StringBuilder("Thử " + cach + ": ");
+            final int amGoc = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+            try {
+                Thread.sleep(8000);
+                hienNoi("ĐANG THỬ " + cach + ": tiếng GAME có NHỎ ĐI không?");
+                AudioFocusRequest xin = null;
+                int amCu = am.getStreamVolume(AudioManager.STREAM_MUSIC);
+                int usage = AudioAttributes.USAGE_ASSISTANT;
+                if (cach.equals("A") || cach.equals("B")) {
+                    xin = new AudioFocusRequest.Builder(cach.equals("A")
+                            ? AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK : AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                            .setAudioAttributes(new AudioAttributes.Builder().setUsage(usage)
+                                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                            .build();
+                    int r = am.requestAudioFocus(xin);
+                    kq.append("xin nhường tiếng = ").append(r == AudioManager.AUDIOFOCUS_REQUEST_GRANTED ? "được" : "bị từ chối (" + r + ")");
+                } else {
+                    usage = AudioAttributes.USAGE_ALARM;
+                    int amMoi = Math.max(1, amCu / 4);
+                    am.setStreamVolume(AudioManager.STREAM_MUSIC, amMoi, 0);
+                    kq.append("âm lượng TV ").append(amCu).append(" → ").append(amMoi)
+                            .append(", kênh báo thức = ").append(am.getStreamVolume(AudioManager.STREAM_ALARM))
+                            .append("/").append(am.getStreamMaxVolume(AudioManager.STREAM_ALARM));
+                }
+                AudioTrack at = taoTieng(usage, 4);
+                at.play();
+                Thread.sleep(4300);
+                at.release();
+                if (xin != null) am.abandonAudioFocusRequest(xin);
+                if (cach.equals("C")) am.setStreamVolume(AudioManager.STREAM_MUSIC, amCu, 0);
+                hienNoi("XONG THỬ " + cach + " - tiếng game đã trả lại bình thường");
+                Thread.sleep(3000);
+                runOnUiThread(this::chuNoiTat);
+            } catch (Throwable t) {
+                kq.append(" ❌ lỗi ").append(t);
+                try { if (cach.equals("C")) am.setStreamVolume(AudioManager.STREAM_MUSIC, amGoc, 0); }
+                catch (Throwable ignored) { }
+            }
+            runOnUiThread(() -> ghi(kq.toString()));
+        }).start();
     }
 
     private void chuNoiTat() {
