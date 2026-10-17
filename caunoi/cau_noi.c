@@ -31,6 +31,7 @@ static void ngu_ms(unsigned ms) { usleep(ms * 1000); }
 #include <chiaki/session.h>
 #include <chiaki/ffmpegdecoder.h>
 #include <chiaki/regist.h>
+#include <chiaki/time.h>
 
 #include <libavutil/frame.h>
 #include <libavutil/pixfmt.h>
@@ -58,6 +59,7 @@ static void log_ra_stderr(ChiakiLogLevel level, const char *msg, void *user)
 	fflush(stderr);
 }
 
+static volatile unsigned g_dem_giai_ma = 0;   // 17/10: dem hinh PS5 gui ve (giai ma xong) -> ghi nhat ky
 static int g_fps = 30;                       // 17/10: --fps 60 -> xin PS5 phat 60 hinh/giay
 
 static const char *lay_tham_so(int argc, char **argv, const char *ten)
@@ -173,6 +175,7 @@ static void hinh_moi_cb(ChiakiFfmpegDecoder *decoder, void *user)
 	(void)decoder;
 	ChupCtx *ctx = user;
 	ctx->co_hinh_moi = true;
+	g_dem_giai_ma++;
 }
 
 static void su_kien_cb(ChiakiEvent *event, void *user)
@@ -629,8 +632,21 @@ static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 		}
 
 		bool da_bao_ket_noi = false;
+		uint64_t t_dem = chiaki_time_now_monotonic_ms();
+		unsigned dem_cu = g_dem_giai_ma, gui_cu = 0, gui_dem = 0;
 		while(!phat_dung && !ctx.da_thoat)
 		{
+			uint64_t t_bay_gio = chiaki_time_now_monotonic_ms();
+			if(t_bay_gio - t_dem >= 10000)     // 17/10: moi 10 giay ghi so hinh/giay PS5 gui ve + so hinh app lay
+			{
+				double giay = (t_bay_gio - t_dem) / 1000.0;
+				if(ctx.da_ket_noi)
+					fprintf(stderr, "[I] HINH PS5: %.1f hinh/giay gui ve, app lay %.1f hinh/giay (xin %d)\n",
+						(g_dem_giai_ma - dem_cu) / giay, (gui_dem - gui_cu) / giay, g_fps);
+				t_dem = t_bay_gio;
+				dem_cu = g_dem_giai_ma;
+				gui_cu = gui_dem;
+			}
 			if(ctx.da_ket_noi && !da_bao_ket_noi)
 			{
 				trang_thai("da_ket_noi", NULL);
@@ -656,11 +672,13 @@ static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 				{
 					phat_yeu_cau--;
 					gui_hinh(hinh_moi_nhat, so_hinh, &bgr, &bgr_cap);
+					gui_dem++;
 				}
 				else
 				{
 					phat_yeu_cau_nho--;
 					gui_hinh_nho(hinh_moi_nhat, so_hinh, &bgr, &bgr_cap, &nho, &nho_cap);
+					gui_dem++;
 				}
 			}
 			ngu_ms(5);
