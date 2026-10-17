@@ -1,0 +1,20 @@
+total 102101
+-rw-r--r-- 1 runneradmin 197121    35069 Oct 17 15:32 LICENSE-AGPL.txt
+-rw-r--r-- 1 runneradmin 197121      151 Oct 17 15:32 README.txt
+-rwxr-xr-x 1 runneradmin 197121 88414720 Oct 17 15:32 avcodec-61.dll
+-rwxr-xr-x 1 runneradmin 197121  2822656 Oct 17 15:32 avutil-59.dll
+-rwxr-xr-x 1 runneradmin 197121  1623807 Oct 17 15:32 cau-noi.exe
+-rwxr-xr-x 1 runneradmin 197121  5501270 Oct 17 15:32 libcrypto-3-x64.dll
+-rwxr-xr-x 1 runneradmin 197121   444325 Oct 17 15:32 libevent-7.dll
+-rwxr-xr-x 1 runneradmin 197121  1143148 Oct 17 15:32 libiconv-2.dll
+-rwxr-xr-x 1 runneradmin 197121   247081 Oct 17 15:32 libidn2-0.dll
+-rwxr-xr-x 1 runneradmin 197121   298731 Oct 17 15:32 libintl-8.dll
+-rwxr-xr-x 1 runneradmin 197121   118271 Oct 17 15:32 libjson-c-5.dll
+-rwxr-xr-x 1 runneradmin 197121   124714 Oct 17 15:32 libminiupnpc.dll
+-rwxr-xr-x 1 runneradmin 197121   215032 Oct 17 15:32 libnghttp2-14.dll
+-rwxr-xr-x 1 runneradmin 197121   105304 Oct 17 15:32 libpsl-5.dll
+-rwxr-xr-x 1 runneradmin 197121   312147 Oct 17 15:32 libssh2-1.dll
+-rwxr-xr-x 1 runneradmin 197121  2251328 Oct 17 15:32 libunistring-5.dll
+-rwxr-xr-x 1 runneradmin 197121    66333 Oct 17 15:32 libwinpthread-1.dll
+-rwxr-xr-x 1 runneradmin 197121   658944 Oct 17 15:32 swresample-5.dll
+-rwxr-xr-x 1 runneradmin 197121   128488 Oct 17 15:32 zlib1.dll
