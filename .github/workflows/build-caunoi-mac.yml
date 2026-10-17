@@ -31,7 +31,7 @@ jobs:
         run: |
           python -m pip install 'protobuf>=5,<6' setuptools
           python -c "import google.protobuf; print('protobuf', google.protobuf.__version__)"
-          brew update
+          export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
           brew install ffmpeg opus openssl@3 cmake ninja pkgconf protobuf@29 json-c miniupnpc libevent dylibbundler || true
           brew link --force protobuf@29 || true
 
@@ -55,7 +55,8 @@ jobs:
           cmake --build build --config Release --target cau-noi 2>&1 | tee build.log
           rc=${PIPESTATUS[0]}
           if [ $rc -ne 0 ]; then
-            grep -E "error|Error|undefined|ld:" build.log | head -40 | while IFS= read -r l; do echo "::error::$l"; done
+            grep -E "error|Error|undefined|ld:" build.log | head -15 | while IFS= read -r l; do echo "::error::$l"; done
+            grep -A40 "Undefined symbols" build.log | grep -E '^\s+"_|referenced from' | head -40 | while IFS= read -r l; do echo "::error::SYM $l"; done
           fi
           exit $rc
 
