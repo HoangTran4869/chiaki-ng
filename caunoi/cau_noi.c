@@ -338,7 +338,8 @@ static int tao_ket_noi(ChiakiConnectInfo *ci, const char *host, const char *regi
 		fprintf(stderr, "regist-key / morning phai la 32 ky tu hex\n");
 		return 1;
 	}
-	chiaki_connect_video_profile_preset(&ci->video_profile, CHIAKI_VIDEO_RESOLUTION_PRESET_1080p, CHIAKI_VIDEO_FPS_PRESET_30);
+	chiaki_connect_video_profile_preset(&ci->video_profile, CHIAKI_VIDEO_RESOLUTION_PRESET_1080p,
+		g_fps >= 60 ? CHIAKI_VIDEO_FPS_PRESET_60 : CHIAKI_VIDEO_FPS_PRESET_30);
 	ci->video_profile.codec = CHIAKI_CODEC_H264;
 	ci->video_profile_auto_downgrade = true;
 	ci->enable_keyboard = false;
@@ -374,7 +375,7 @@ static int lenh_chup(ChiakiLog *log, int argc, char **argv)
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.log = log;
 
-	if(chiaki_ffmpeg_decoder_init(&ctx.decoder, log, CHIAKI_CODEC_H264, 30, NULL, NULL, hinh_moi_cb, &ctx) != CHIAKI_ERR_SUCCESS)
+	if(chiaki_ffmpeg_decoder_init(&ctx.decoder, log, CHIAKI_CODEC_H264, g_fps, NULL, NULL, hinh_moi_cb, &ctx) != CHIAKI_ERR_SUCCESS)
 	{
 		CHIAKI_LOGE(log, "Khong khoi tao duoc bo giai ma hinh");
 		return 2;
@@ -451,6 +452,8 @@ static int lenh_chup(ChiakiLog *log, int argc, char **argv)
 #endif
 
 static volatile int phat_yeu_cau = 0;
+static volatile int phat_yeu_cau_nho = 0;   // 17/10: "N" = hinh THU NHO 1/2 (cua so xem, nhe 4 lan)
+static int g_fps = 30;                       // 17/10: --fps 60 -> xin PS5 phat 60 hinh/giay
 static volatile bool phat_dung = false;
 
 static void *doc_lenh_thread(void *user)
@@ -461,6 +464,8 @@ static void *doc_lenh_thread(void *user)
 	{
 		if(dong[0] == 'H' || dong[0] == 'h')
 			phat_yeu_cau++;
+		else if(dong[0] == 'N' || dong[0] == 'n')
+			phat_yeu_cau_nho++;
 		else if(dong[0] == 'Q' || dong[0] == 'q')
 			break;
 	}
@@ -503,6 +508,62 @@ static void gui_hinh(AVFrame *f, uint32_t so, uint8_t **bgr, size_t *bgr_cap)
 	fflush(stdout);
 }
 
+// 17/10: gui hinh thu nho 1/2 (trung binh 2x2) - cua so xem hinh khong can 1080p, nhe 4 lan -> 60 hinh/giay
+static void gui_hinh_nho(AVFrame *f, uint32_t so, uint8_t **bgr, size_t *bgr_cap, uint8_t **nho, size_t *nho_cap)
+{
+	uint32_t w = 0, h = 0;
+	if(f && dinh_dang_ho_tro(f))
+	{
+		uint32_t W = (uint32_t)f->width, H = (uint32_t)f->height;
+		size_t can = (size_t)W * H * 3;
+		if(*bgr_cap < can)
+		{
+			free(*bgr);
+			*bgr = malloc(can);
+			*bgr_cap = *bgr ? can : 0;
+		}
+		w = W / 2;
+		h = H / 2;
+		size_t can_nho = (size_t)w * h * 3;
+		if(*nho_cap < can_nho)
+		{
+			free(*nho);
+			*nho = malloc(can_nho);
+			*nho_cap = *nho ? can_nho : 0;
+		}
+		if(!*bgr || !*nho || !w || !h)
+			w = h = 0;
+		else
+		{
+			chuyen_bgr(f, *bgr);
+			const uint8_t *g = *bgr;
+			uint8_t *n = *nho;
+			for(uint32_t y = 0; y < h; y++)
+			{
+				const uint8_t *r0 = g + (size_t)(2 * y) * W * 3;
+				const uint8_t *r1 = r0 + (size_t)W * 3;
+				uint8_t *o = n + (size_t)y * w * 3;
+				for(uint32_t x = 0; x < w; x++)
+				{
+					const uint8_t *a = r0 + (size_t)x * 6, *b = r1 + (size_t)x * 6;
+					o[0] = (uint8_t)((a[0] + a[3] + b[0] + b[3] + 2) >> 2);
+					o[1] = (uint8_t)((a[1] + a[4] + b[1] + b[4] + 2) >> 2);
+					o[2] = (uint8_t)((a[2] + a[5] + b[2] + b[5] + 2) >> 2);
+					o += 3;
+				}
+			}
+		}
+	}
+	uint8_t hdr[16] = { 'C', 'N', 'H', 'I' };
+	memcpy(hdr + 4, &w, 4);
+	memcpy(hdr + 8, &h, 4);
+	memcpy(hdr + 12, &so, 4);
+	fwrite(hdr, 1, 16, stdout);
+	if(w && h)
+		fwrite(*nho, 1, (size_t)w * h * 3, stdout);
+	fflush(stdout);
+}
+
 static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 {
 	const char *host = lay_tham_so(argc, argv, "--host");
@@ -533,6 +594,8 @@ static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 	static ChiakiSession session;
 	uint8_t *bgr = NULL;
 	size_t bgr_cap = 0;
+	uint8_t *nho = NULL;
+	size_t nho_cap = 0;
 	uint32_t so_hinh = 0;
 	unsigned lan_thu = 0;
 
@@ -543,7 +606,7 @@ static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 		AVFrame *hinh_moi_nhat = NULL;
 		trang_thai("dang_ket_noi", NULL);
 
-		if(chiaki_ffmpeg_decoder_init(&ctx.decoder, log, CHIAKI_CODEC_H264, 30, NULL, NULL, hinh_moi_cb, &ctx) != CHIAKI_ERR_SUCCESS)
+		if(chiaki_ffmpeg_decoder_init(&ctx.decoder, log, CHIAKI_CODEC_H264, g_fps, NULL, NULL, hinh_moi_cb, &ctx) != CHIAKI_ERR_SUCCESS)
 		{
 			trang_thai("mat_ket_noi", "khong khoi tao duoc bo giai ma");
 			break;
@@ -584,10 +647,18 @@ static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 					so_hinh++;
 				}
 			}
-			while(phat_yeu_cau > 0)
+			while(phat_yeu_cau > 0 || phat_yeu_cau_nho > 0)
 			{
-				phat_yeu_cau--;
-				gui_hinh(hinh_moi_nhat, so_hinh, &bgr, &bgr_cap);
+				if(phat_yeu_cau > 0)
+				{
+					phat_yeu_cau--;
+					gui_hinh(hinh_moi_nhat, so_hinh, &bgr, &bgr_cap);
+				}
+				else
+				{
+					phat_yeu_cau_nho--;
+					gui_hinh_nho(hinh_moi_nhat, so_hinh, &bgr, &bgr_cap, &nho, &nho_cap);
+				}
 			}
 			ngu_ms(5);
 		}
@@ -620,6 +691,7 @@ static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 	}
 
 	free(bgr);
+	free(nho);
 	trang_thai("da_dung", NULL);
 	return 0;
 }
@@ -730,7 +802,7 @@ int main(int argc, char **argv)
 				"cau-noi (dua tren chiaki-ng, AGPL-3.0)\n"
 				"  cau-noi tim [--giay N]\n"
 				"  cau-noi chup --host IP --regist-key HEX --morning HEX --out anh.bmp [--ps4] [--giay N]\n"
-				"  cau-noi phat --host IP --regist-key HEX --morning HEX [--ps4]   (stdin: H=xin hinh, Q=thoat)\n"
+				"  cau-noi phat --host IP --regist-key HEX --morning HEX [--ps4] [--fps 60]   (stdin: H=hinh, N=hinh nho 1/2, Q=thoat)\n"
 				"  cau-noi dang_ky --host IP --account HEX16 --pin 12345678 [--ps4]\n");
 		return 1;
 	}
@@ -745,6 +817,10 @@ int main(int argc, char **argv)
 	ChiakiLog log;
 	bool chi_tiet = co_co(argc, argv, "--chi-tiet");
 	chiaki_log_init(&log, chi_tiet ? CHIAKI_LOG_ALL : (CHIAKI_LOG_INFO | CHIAKI_LOG_WARNING | CHIAKI_LOG_ERROR), log_ra_stderr, NULL);
+
+	const char *fps_s = lay_tham_so(argc, argv, "--fps");
+	if(fps_s && atoi(fps_s) >= 60)
+		g_fps = 60;
 
 	if(strcmp(argv[1], "tim") == 0)
 		return lenh_tim(&log, argc, argv);
