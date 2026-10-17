@@ -58,6 +58,8 @@ static void log_ra_stderr(ChiakiLogLevel level, const char *msg, void *user)
 	fflush(stderr);
 }
 
+static int g_fps = 30;                       // 17/10: --fps 60 -> xin PS5 phat 60 hinh/giay
+
 static const char *lay_tham_so(int argc, char **argv, const char *ten)
 {
 	for(int i = 0; i < argc - 1; i++)
@@ -453,7 +455,6 @@ static int lenh_chup(ChiakiLog *log, int argc, char **argv)
 
 static volatile int phat_yeu_cau = 0;
 static volatile int phat_yeu_cau_nho = 0;   // 17/10: "N" = hinh THU NHO 1/2 (cua so xem, nhe 4 lan)
-static int g_fps = 30;                       // 17/10: --fps 60 -> xin PS5 phat 60 hinh/giay
 static volatile bool phat_dung = false;
 
 static void *doc_lenh_thread(void *user)
