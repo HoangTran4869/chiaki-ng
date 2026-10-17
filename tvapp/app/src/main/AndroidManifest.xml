@@ -11,8 +11,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application
         android:label="Dịch Game TV"
-        android:icon="@android:drawable/sym_def_app_icon"
-        android:banner="@drawable/banner"
+        android:icon="@mipmap/ic_launcher"
+        android:banner="@drawable/banner_tv"
         android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
         <activity android:name=".MainActivity" android:exported="true"

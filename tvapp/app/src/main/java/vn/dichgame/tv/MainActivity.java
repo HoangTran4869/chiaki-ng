@@ -22,7 +22,7 @@ import java.util.Collections;
 
 /** Man hinh chinh app TV: trang thai ket noi + cap quyen chu noi + chu thu. Chay ngam = DichService. */
 public class MainActivity extends Activity {
-    static final String PHIEN_BAN = "0.10";
+    static final String PHIEN_BAN = "0.11";
     private TextView trangThai;
     private Button nutQuyen;
     private final Handler h = new Handler(Looper.getMainLooper());
@@ -87,6 +87,7 @@ public class MainActivity extends Activity {
         hd.setPadding(0, 30, 0, 0);
         hd.setText("Cách dùng: để app này chạy, bấm nút Nguồn vào (Input) trên remote → chọn cổng HDMI của PS5. "
                 + "Mở app dịch trên máy tính: máy tính tự tìm TV. Lần đầu TV hỏi Đồng ý → bấm OK.\n"
+                + "Máy tính không tự tìm thấy TV? Trên app máy tính vào Cài đặt → TV → Nhập IP TV, gõ dòng 'Địa chỉ' ở trên.\n"
                 + "Mẹo: vào cài đặt âm thanh của game, giảm Voice Volume (giọng nói) để giọng Việt nghe rõ, "
                 + "vẫn giữ nhạc và hiệu ứng.");
         l.addView(hd);
