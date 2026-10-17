@@ -1,0 +1,48 @@
+name: Build goi 5 giong VieNeu (macOS arm64)
+
+# Dong goi may doc VieNeu Nano cho ban Mac cua Dich Phu De Game -> Release "giong-vieneu-mac-v1" trong kho nay.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "giongmac/**"
+      - ".github/workflows/build-giong-mac.yml"
+
+jobs:
+  build:
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cai thu vien
+        run: |
+          python -m pip install --upgrade pip
+          pip install vieneu pyinstaller huggingface_hub
+          pip show vieneu | head -3
+      - name: Dong goi + chay thu
+        run: |
+          cd giongmac
+          python dong_goi_vieneu_mac.py
+          ls -la ra
+      - name: Upload artifact (de xem / nghe thu)
+        uses: actions/upload-artifact@v4
+        with:
+          name: giong-mac
+          path: |
+            giongmac/ra/giong_vieneu_mac.json
+            giongmac/ra/thu_giong_mac.wav
+          retention-days: 30
+      - name: Tao / cap nhat Release giong-vieneu-mac-v1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd giongmac/ra
+          gh release view giong-vieneu-mac-v1 -R "${{ github.repository }}" >/dev/null 2>&1 || \
+            gh release create giong-vieneu-mac-v1 -R "${{ github.repository }}" --title "Goi 5 giong doc hay (Mac)" \
+              --notes "Goi giong VieNeu Nano cho ban Mac (chip Apple) cua Dich Phu De Game. Ung dung tu tai, khong can tai tay."
+          gh release upload giong-vieneu-mac-v1 GiongVieNeu_mac_v1.zip giong_vieneu_mac.json --clobber -R "${{ github.repository }}"
