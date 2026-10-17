@@ -342,6 +342,8 @@ static int tao_ket_noi(ChiakiConnectInfo *ci, const char *host, const char *regi
 	}
 	chiaki_connect_video_profile_preset(&ci->video_profile, CHIAKI_VIDEO_RESOLUTION_PRESET_1080p,
 		g_fps >= 60 ? CHIAKI_VIDEO_FPS_PRESET_60 : CHIAKI_VIDEO_FPS_PRESET_30);
+	if(g_fps >= 60)
+		ci->video_profile.bitrate = 30000;   // 17/10: 60 hinh/giay -> gap doi luong du lieu (mac dinh 15000) cho do net
 	ci->video_profile.codec = CHIAKI_CODEC_H264;
 	ci->video_profile_auto_downgrade = true;
 	ci->enable_keyboard = false;
