@@ -462,6 +462,172 @@ static volatile int phat_yeu_cau = 0;
 static volatile int phat_yeu_cau_nho = 0;   // 17/10: "N" = hinh THU NHO 1/2 (cua so xem, nhe 4 lan)
 static volatile bool phat_dung = false;
 
+// ---------------------------------------------------------------- 20/10: CUA SO HINH MUOT (Windows)
+// App gui "V <hwnd>": cau noi tao 1 cua so CON (SDL2, ve bang card do hoa) nam trong o xem hinh cua app,
+// ve thang khung YUV vua giai ma -> 1080p, 60 hinh/giay nhu chiaki (truoc: chep hinh BGR 6 MB/hinh sang Python
+// roi Tkinter ve -> ~20 hinh/giay, mo). Cua so con bi TAT nhan chuot (WS_DISABLED) -> chuot roi xuong o cua app.
+//   "V <hwnd>" bat / doi cha   "v" tat   "a" an tam   "A" hien lai
+static volatile long long video_hwnd_moi = 0;   // >0: bat vao cua so cha nay
+static volatile int video_lenh = 0;              // 1 = tat, 2 = an, 3 = hien
+#if defined(_WIN32) && defined(CAUNOI_VIDEO)
+#define SDL_MAIN_HANDLED
+#include <SDL.h>
+#include <SDL_syswm.h>
+typedef struct
+{
+	SDL_Window *win;
+	SDL_Renderer *ren;
+	SDL_Texture *tex;
+	int tex_w, tex_h, tex_nv12;
+	HWND cha, con;
+	int rong, cao;
+	bool an;
+	uint32_t so_ve;
+} Video;
+static Video g_vd;
+static bool g_sdl_ok = false;
+
+static void video_tat(void)
+{
+	if(g_vd.tex) SDL_DestroyTexture(g_vd.tex);
+	if(g_vd.ren) SDL_DestroyRenderer(g_vd.ren);
+	if(g_vd.win) SDL_DestroyWindow(g_vd.win);
+	memset(&g_vd, 0, sizeof(g_vd));
+}
+
+static void video_bat(HWND cha)
+{
+	video_tat();
+	if(!g_sdl_ok)
+	{
+		SDL_SetMainReady();
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "direct3d11");
+		SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+		if(SDL_Init(SDL_INIT_VIDEO) != 0)
+		{
+			fprintf(stderr, "VIDEO|loi|SDL_Init: %s\n", SDL_GetError());
+			fflush(stderr);
+			return;
+		}
+		g_sdl_ok = true;
+	}
+	RECT r;
+	if(!IsWindow(cha) || !GetClientRect(cha, &r))
+	{
+		fprintf(stderr, "VIDEO|loi|cua so cha khong hop le\n");
+		fflush(stderr);
+		return;
+	}
+	g_vd.win = SDL_CreateWindow("cau-noi", 0, 0, r.right > 16 ? r.right : 16, r.bottom > 16 ? r.bottom : 16,
+			SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN);
+	if(!g_vd.win)
+	{
+		fprintf(stderr, "VIDEO|loi|SDL_CreateWindow: %s\n", SDL_GetError());
+		fflush(stderr);
+		return;
+	}
+	SDL_SysWMinfo wm;
+	SDL_VERSION(&wm.version);
+	if(!SDL_GetWindowWMInfo(g_vd.win, &wm))
+	{
+		video_tat();
+		return;
+	}
+	g_vd.con = wm.info.win.window;
+	g_vd.cha = cha;
+	SetWindowLongPtrW(g_vd.con, GWL_STYLE, WS_CHILD | WS_DISABLED | WS_CLIPSIBLINGS);
+	SetWindowLongPtrW(g_vd.con, GWL_EXSTYLE, 0);
+	SetParent(g_vd.con, cha);
+	g_vd.rong = r.right; g_vd.cao = r.bottom;
+	SetWindowPos(g_vd.con, HWND_TOP, 0, 0, r.right, r.bottom, SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+	g_vd.ren = SDL_CreateRenderer(g_vd.win, -1, SDL_RENDERER_ACCELERATED);
+	if(!g_vd.ren)
+		g_vd.ren = SDL_CreateRenderer(g_vd.win, -1, 0);
+	if(!g_vd.ren)
+	{
+		fprintf(stderr, "VIDEO|loi|SDL_CreateRenderer: %s\n", SDL_GetError());
+		fflush(stderr);
+		video_tat();
+		return;
+	}
+	SDL_RendererInfo ri;
+	SDL_GetRendererInfo(g_vd.ren, &ri);
+	SDL_SetYUVConversionMode(SDL_YUV_CONVERSION_BT709);
+	SDL_SetRenderDrawColor(g_vd.ren, 0, 0, 0, 255);
+	SDL_RenderClear(g_vd.ren);
+	SDL_RenderPresent(g_vd.ren);
+	fprintf(stderr, "VIDEO|bat|%s\n", ri.name ? ri.name : "?");
+	fflush(stderr);
+}
+
+// moi vong lap: theo kich thuoc o cha, an / hien, ve khung moi
+static void video_nhip(AVFrame *f, uint32_t so)
+{
+	if(video_hwnd_moi > 0)
+	{
+		HWND cha = (HWND)(intptr_t)video_hwnd_moi;
+		video_hwnd_moi = 0;
+		video_bat(cha);
+	}
+	int l = video_lenh;
+	if(l)
+	{
+		video_lenh = 0;
+		if(l == 1) { video_tat(); fprintf(stderr, "VIDEO|tat\n"); fflush(stderr); }
+		else if(g_vd.con) { g_vd.an = (l == 2); ShowWindow(g_vd.con, g_vd.an ? SW_HIDE : SW_SHOWNA); g_vd.so_ve = 0; }
+	}
+	if(!g_vd.ren)
+		return;
+	SDL_PumpEvents();
+	if(!IsWindow(g_vd.cha))
+	{
+		video_tat();
+		return;
+	}
+	RECT r;
+	bool doi = false;
+	if(GetClientRect(g_vd.cha, &r) && (r.right != g_vd.rong || r.bottom != g_vd.cao))
+	{
+		g_vd.rong = r.right; g_vd.cao = r.bottom;
+		SetWindowPos(g_vd.con, NULL, 0, 0, r.right, r.bottom, SWP_NOACTIVATE | SWP_NOZORDER);
+		SDL_SetWindowSize(g_vd.win, r.right > 1 ? r.right : 1, r.bottom > 1 ? r.bottom : 1);
+		doi = true;
+	}
+	if(g_vd.an || !f || !dinh_dang_ho_tro(f) || (so == g_vd.so_ve && !doi))
+		return;
+	int nv12 = f->format == AV_PIX_FMT_NV12;
+	if(!g_vd.tex || g_vd.tex_w != f->width || g_vd.tex_h != f->height || g_vd.tex_nv12 != nv12)
+	{
+		if(g_vd.tex) SDL_DestroyTexture(g_vd.tex);
+		g_vd.tex = SDL_CreateTexture(g_vd.ren, nv12 ? SDL_PIXELFORMAT_NV12 : SDL_PIXELFORMAT_IYUV,
+				SDL_TEXTUREACCESS_STREAMING, f->width, f->height);
+		g_vd.tex_w = f->width; g_vd.tex_h = f->height; g_vd.tex_nv12 = nv12;
+		if(!g_vd.tex)
+			return;
+	}
+	if(nv12)
+		SDL_UpdateNVTexture(g_vd.tex, NULL, f->data[0], f->linesize[0], f->data[1], f->linesize[1]);
+	else
+		SDL_UpdateYUVTexture(g_vd.tex, NULL, f->data[0], f->linesize[0], f->data[1], f->linesize[1],
+				f->data[2], f->linesize[2]);
+	int ow = 0, oh = 0;
+	SDL_GetRendererOutputSize(g_vd.ren, &ow, &oh);
+	double tl = (double)ow / f->width < (double)oh / f->height ? (double)ow / f->width : (double)oh / f->height;
+	SDL_Rect d;
+	d.w = (int)(f->width * tl); d.h = (int)(f->height * tl);
+	d.x = (ow - d.w) / 2; d.y = (oh - d.h) / 2;
+	SDL_RenderClear(g_vd.ren);
+	SDL_RenderCopy(g_vd.ren, g_vd.tex, NULL, &d);
+	SDL_RenderPresent(g_vd.ren);
+	g_vd.so_ve = so;
+}
+static bool g_vd_dang_bat(void) { return g_vd.ren != NULL; }
+#else
+static void video_nhip(AVFrame *f, uint32_t so) { (void)f; (void)so; video_hwnd_moi = 0; video_lenh = 0; }
+static void video_tat(void) {}
+static bool g_vd_dang_bat(void) { return false; }
+#endif
+
 static void *doc_lenh_thread(void *user)
 {
 	(void)user;
@@ -472,6 +638,18 @@ static void *doc_lenh_thread(void *user)
 			phat_yeu_cau++;
 		else if(dong[0] == 'N' || dong[0] == 'n')
 			phat_yeu_cau_nho++;
+		else if(dong[0] == 'V')
+		{
+			long long h = atoll(dong + 1);
+			if(h > 0)
+				video_hwnd_moi = h;
+		}
+		else if(dong[0] == 'v')
+			video_lenh = 1;
+		else if(dong[0] == 'a')
+			video_lenh = 2;
+		else if(dong[0] == 'A')
+			video_lenh = 3;
 		else if(dong[0] == 'Q' || dong[0] == 'q')
 			break;
 	}
@@ -666,6 +844,7 @@ static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 					so_hinh++;
 				}
 			}
+			video_nhip(hinh_moi_nhat, so_hinh);         // 20/10: ve cua so hinh muot (neu app bat)
 			while(phat_yeu_cau > 0 || phat_yeu_cau_nho > 0)
 			{
 				if(phat_yeu_cau > 0)
@@ -681,7 +860,7 @@ static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 					gui_dem++;
 				}
 			}
-			ngu_ms(5);
+			ngu_ms(g_vd_dang_bat() ? 2 : 5);
 		}
 
 		if(co_phien)
@@ -707,10 +886,12 @@ static int lenh_phat(ChiakiLog *log, int argc, char **argv)
 				phat_yeu_cau--;
 				gui_hinh(NULL, so_hinh, &bgr, &bgr_cap);
 			}
+			video_nhip(NULL, so_hinh);                  // 20/10: van xu ly cua so hinh (doi co, an/hien) luc cho
 			ngu_ms(20);
 		}
 	}
 
+	video_tat();
 	free(bgr);
 	free(nho);
 	trang_thai("da_dung", NULL);
@@ -824,6 +1005,9 @@ int main(int argc, char **argv)
 				"  cau-noi tim [--giay N]\n"
 				"  cau-noi chup --host IP --regist-key HEX --morning HEX --out anh.bmp [--ps4] [--giay N]\n"
 				"  cau-noi phat --host IP --regist-key HEX --morning HEX [--ps4] [--fps 60]   (stdin: H=hinh, N=hinh nho 1/2, Q=thoat)\n"
+#if defined(_WIN32) && defined(CAUNOI_VIDEO)
+				"      cua so muot: stdin V <hwnd> = ve hinh vao o cua app, v = tat, a = an, A = hien\n"
+#endif
 				"  cau-noi dang_ky --host IP --account HEX16 --pin 12345678 [--ps4]\n");
 		return 1;
 	}

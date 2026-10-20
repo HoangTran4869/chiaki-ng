@@ -49,6 +49,7 @@ jobs:
             python-pip:p
             python-protobuf:p
             ntldd:p
+            SDL2:p
 
       - name: Setup ffmpeg
         run: |
