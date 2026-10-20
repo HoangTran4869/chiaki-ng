@@ -30,7 +30,7 @@ jobs:
 
       - uses: msys2/setup-msys2@v2
         with:
-          msystem: mingw64
+          msystem: ucrt64
           update: true
           install: git diffutils unzip zip
           pacboy: >-
@@ -49,18 +49,15 @@ jobs:
             python-pip:p
             python-protobuf:p
             ntldd:p
-
-      - name: Cai SDL2 (cua so hinh muot)
-        run: |
-          pacman -S --noconfirm --needed mingw-w64-x86_64-SDL2 || echo "KHONG CAI DUOC SDL2"
+            SDL2:p
 
       - name: Setup ffmpeg
         run: |
           curl -LO https://github.com/streetpea/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-shared-7.1.zip
           unzip -q ffmpeg-n7.1-latest-win64-gpl-shared-7.1.zip
-          cp -a "ffmpeg-n7.1-latest-win64-gpl-shared-7.1/bin/." /mingw64/bin
-          cp -a "ffmpeg-n7.1-latest-win64-gpl-shared-7.1/include/." /mingw64/include
-          cp -a "ffmpeg-n7.1-latest-win64-gpl-shared-7.1/lib/." /mingw64/lib
+          cp -a "ffmpeg-n7.1-latest-win64-gpl-shared-7.1/bin/." /ucrt64/bin
+          cp -a "ffmpeg-n7.1-latest-win64-gpl-shared-7.1/include/." /ucrt64/include
+          cp -a "ffmpeg-n7.1-latest-win64-gpl-shared-7.1/lib/." /ucrt64/lib
 
       - name: Configure
         run: |
@@ -79,7 +76,7 @@ jobs:
         run: |
           mkdir -p cau-noi-win
           cp build/caunoi/cau-noi.exe cau-noi-win/
-          for dll in $(ntldd -R build/caunoi/cau-noi.exe | grep -i mingw64 | sed -E 's/.*=> (.*\.dll).*/\1/' | sort -u); do
+          for dll in $(ntldd -R build/caunoi/cau-noi.exe | grep -i ucrt64 | sed -E 's/.*=> (.*\.dll).*/\1/' | sort -u); do
             cp "$(cygpath -u "$dll")" cau-noi-win/ || true
           done
           cp COPYING cau-noi-win/LICENSE-AGPL.txt
