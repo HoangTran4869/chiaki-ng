@@ -49,7 +49,10 @@ jobs:
             python-pip:p
             python-protobuf:p
             ntldd:p
-            SDL2:p
+
+      - name: Cai SDL2 (cua so hinh muot)
+        run: |
+          pacman -S --noconfirm --needed mingw-w64-x86_64-SDL2 || echo "KHONG CAI DUOC SDL2"
 
       - name: Setup ffmpeg
         run: |
