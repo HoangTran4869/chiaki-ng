@@ -483,7 +483,10 @@ typedef struct
 	int rong, cao;
 	bool an;
 	uint32_t so_ve;
+	int lan_reset;          // 20/10: card do hoa bi reset (qua tai / doi driver) -> dem, nhieu lan thi tat
+	int lan_loi_lien;       // ve / nap hinh loi lien tiep
 } Video;
+static int g_vd_reset_tong = 0;
 static Video g_vd;
 static bool g_sdl_ok = false;
 
@@ -584,6 +587,31 @@ static void video_nhip(AVFrame *f, uint32_t so)
 		video_tat();
 		return;
 	}
+	// 20/10 anh luu y (tung sap app khi card do hoa qua tai): card bi reset -> SDL bao su kien; tao lai bo ve,
+	// reset >= 3 lan (ca phien) hoac ve loi lien tiep -> TU TAT hinh muot, bao app quay ve hinh thuong (khong sap)
+	SDL_Event ev;
+	bool reset = false;
+	while(SDL_PeepEvents(&ev, 1, SDL_GETEVENT, SDL_RENDER_TARGETS_RESET, SDL_RENDER_DEVICE_RESET) > 0)
+		if(ev.type == SDL_RENDER_DEVICE_RESET)
+			reset = true;
+	SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+	if(reset)
+	{
+		HWND cha = g_vd.cha;
+		g_vd_reset_tong++;
+		fprintf(stderr, "[W] VIDEO: card do hoa bi reset (lan %d)\n", g_vd_reset_tong);
+		fflush(stderr);
+		if(g_vd_reset_tong >= 3)
+		{
+			video_tat();
+			fprintf(stderr, "VIDEO|loi|card do hoa bi reset nhieu lan\n");
+			fflush(stderr);
+			return;
+		}
+		video_bat(cha);
+		if(!g_vd.ren)
+			return;
+	}
 	RECT r;
 	bool doi = false;
 	if(GetClientRect(g_vd.cha, &r) && (r.right != g_vd.rong || r.bottom != g_vd.cao))
@@ -605,11 +633,21 @@ static void video_nhip(AVFrame *f, uint32_t so)
 		if(!g_vd.tex)
 			return;
 	}
-	if(nv12)
-		SDL_UpdateNVTexture(g_vd.tex, NULL, f->data[0], f->linesize[0], f->data[1], f->linesize[1]);
-	else
-		SDL_UpdateYUVTexture(g_vd.tex, NULL, f->data[0], f->linesize[0], f->data[1], f->linesize[1],
+	int kq = nv12
+		? SDL_UpdateNVTexture(g_vd.tex, NULL, f->data[0], f->linesize[0], f->data[1], f->linesize[1])
+		: SDL_UpdateYUVTexture(g_vd.tex, NULL, f->data[0], f->linesize[0], f->data[1], f->linesize[1],
 				f->data[2], f->linesize[2]);
+	if(kq != 0)
+	{
+		if(++g_vd.lan_loi_lien >= 30)        // ~0,5 giay ve loi lien tuc -> tat, khong co ve tiep
+		{
+			fprintf(stderr, "VIDEO|loi|ve hinh loi lien tiep: %s\n", SDL_GetError());
+			fflush(stderr);
+			video_tat();
+		}
+		return;
+	}
+	g_vd.lan_loi_lien = 0;
 	int ow = 0, oh = 0;
 	SDL_GetRendererOutputSize(g_vd.ren, &ow, &oh);
 	double tl = (double)ow / f->width < (double)oh / f->height ? (double)ow / f->width : (double)oh / f->height;
@@ -617,7 +655,13 @@ static void video_nhip(AVFrame *f, uint32_t so)
 	d.w = (int)(f->width * tl); d.h = (int)(f->height * tl);
 	d.x = (ow - d.w) / 2; d.y = (oh - d.h) / 2;
 	SDL_RenderClear(g_vd.ren);
-	SDL_RenderCopy(g_vd.ren, g_vd.tex, NULL, &d);
+	if(SDL_RenderCopy(g_vd.ren, g_vd.tex, NULL, &d) != 0 && ++g_vd.lan_loi_lien >= 30)
+	{
+		fprintf(stderr, "VIDEO|loi|ve hinh loi lien tiep: %s\n", SDL_GetError());
+		fflush(stderr);
+		video_tat();
+		return;
+	}
 	SDL_RenderPresent(g_vd.ren);
 	g_vd.so_ve = so;
 }
