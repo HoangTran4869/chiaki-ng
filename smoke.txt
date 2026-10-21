@@ -1,0 +1,37 @@
+cau-noi:
+	/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation (compatibility version 150.0.0, current version 3502.1.255)
+	/System/Library/Frameworks/Security.framework/Versions/A/Security (compatibility version 1.0.0, current version 61439.120.27)
+	/System/Library/Frameworks/SystemConfiguration.framework/Versions/A/SystemConfiguration (compatibility version 1.0.0, current version 1351.120.3)
+	/System/Library/Frameworks/CoreServices.framework/Versions/A/CoreServices (compatibility version 1.0.0, current version 1226.0.0)
+	/System/Library/Frameworks/IOKit.framework/Versions/A/IOKit (compatibility version 1.0.0, current version 275.0.0)
+	/System/Library/Frameworks/AudioToolbox.framework/Versions/A/AudioToolbox (compatibility version 1.0.0, current version 1000.0.0)
+	/System/Library/Frameworks/VideoToolbox.framework/Versions/A/VideoToolbox (compatibility version 1.0.0, current version 3225.7.1)
+	/System/Library/Frameworks/CoreMedia.framework/Versions/A/CoreMedia (compatibility version 1.0.0, current version 3225.7.1)
+	/System/Library/Frameworks/CoreVideo.framework/Versions/A/CoreVideo (compatibility version 1.2.0, current version 1.5.0)
+	/usr/lib/libz.1.dylib (compatibility version 1.0.0, current version 1.2.12)
+	/usr/lib/libobjc.A.dylib (compatibility version 1.0.0, current version 228.0.0)
+	@executable_path/libs/libjson-c.5.5.0.dylib (compatibility version 5.0.0, current version 5.5.0)
+	@executable_path/libs/libminiupnpc.21.dylib (compatibility version 0.0.0, current version 0.0.0)
+	@executable_path/libs/libevent-2.1.7.dylib (compatibility version 8.0.0, current version 8.2.0)
+	@executable_path/libs/libidn2.0.dylib (compatibility version 5.0.0, current version 5.0.0)
+	@executable_path/libs/libssl.3.dylib (compatibility version 3.0.0, current version 3.0.0)
+	@executable_path/libs/libcrypto.3.dylib (compatibility version 3.0.0, current version 3.0.0)
+	@executable_path/libs/libnghttp2.14.dylib (compatibility version 44.0.0, current version 44.5.0)
+	@executable_path/libs/libpsl.5.dylib (compatibility version 9.0.0, current version 9.8.0)
+	@executable_path/libs/libssh2.1.dylib (compatibility version 2.0.0, current version 2.1.0)
+	@executable_path/libs/libavcodec.63.1.101.dylib (compatibility version 63.0.0, current version 63.1.101)
+	@executable_path/libs/libavutil.61.1.101.dylib (compatibility version 61.0.0, current version 61.1.101)
+	@executable_path/libs/libopus.0.dylib (compatibility version 12.0.0, current version 12.1.0)
+	/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1351.0.0)
+--- chay khong tham so
+cau-noi (dua tren chiaki-ng, AGPL-3.0)
+  cau-noi tim [--giay N]
+  cau-noi chup --host IP --regist-key HEX --morning HEX --out anh.bmp [--ps4] [--giay N]
+  cau-noi phat --host IP --regist-key HEX --morning HEX [--ps4] [--fps 60]   (stdin: H=hinh, N=hinh nho 1/2, Q=thoat)
+      cua so muot (mac): stdin M x y w h = cua so hinh dat dung o xem, v = tat, a = an, A = hien
+  cau-noi dang_ky --host IP --account HEX16 --pin 12345678 [--ps4]
+--- tim
+[E] Discovery failed to send: No route to host
+[E] Discovery failed to send: No route to host
+[E] Discovery failed to send: No route to host
+[E] Discovery failed to send: No route to host
