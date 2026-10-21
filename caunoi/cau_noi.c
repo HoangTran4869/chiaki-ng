@@ -814,6 +814,15 @@ static void video_tat(void)
 	memset(&g_vd, 0, sizeof(g_vd));
 }
 
+// Core Animation chi dua hinh len man hinh khi "giao dich" duoc gui di (binh thuong vong su kien cua app lam viec nay).
+// Cau noi la chuong trinh dong lenh, khong co vong su kien -> hinh ve xong van nam trong bo dem, man hinh van den.
+static void ca_day_len(void)
+{
+	static Class ca = NULL;
+	if(!ca) ca = objc_getClass("CATransaction");
+	if(ca) ((void (*)(id, SEL))objc_msgSend)((id)ca, sel_registerName("flush"));
+}
+
 static void video_hien(bool hien)
 {
 	if(!g_vd.ns) return;
@@ -876,6 +885,7 @@ static void video_bat_mac(int x, int y, int w, int h)
 	SDL_RenderClear(g_vd.ren);
 	SDL_RenderPresent(g_vd.ren);
 	video_hien(true);
+	ca_day_len();
 	fprintf(stderr, "VIDEO|bat|%s\n", ri.name ? ri.name : "?");
 	fflush(stderr);
 }
@@ -953,6 +963,7 @@ static void video_nhip(AVFrame *f, uint32_t so)
 		return;
 	}
 	SDL_RenderPresent(g_vd.ren);
+	ca_day_len();          // 21/10: cau noi khong chay vong su kien cua macOS -> phai tu day khung len man hinh
 	g_vd.so_ve = so;
 	g_vd_dem_ve++;
 	if(g_vd_dem_ve == 1)
