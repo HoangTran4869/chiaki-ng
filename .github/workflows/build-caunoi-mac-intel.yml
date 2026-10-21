@@ -1,0 +1,125 @@
+name: Build cau-noi (macOS Intel x86_64)
+
+# Cau noi PS5 Choi tu xa cho ban Mac cua Dich Phu De Game (chip Apple M1 tro len).
+# Build tren macos-14 de chay duoc tu macOS 14 tro len. Ket qua day len nhanh ban-build-mac-intel
+# (file > 18MB cat thanh .phan_aa, .phan_ab... giong ban Windows).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-caunoi-mac-intel.yml"
+
+jobs:
+  build-caunoi-mac-intel:
+    name: Build cau-noi macOS Intel
+    runs-on: macos-15-intel
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install 'protobuf>=5,<6' setuptools
+          python -c "import google.protobuf; print('protobuf', google.protobuf.__version__)"
+          export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
+          brew install ffmpeg opus openssl@3 cmake ninja pkgconf protobuf@29 json-c miniupnpc libevent dylibbundler sdl2 || true
+          brew link --force protobuf@29 || true
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            -DCHIAKI_ENABLE_GUI=OFF -DCHIAKI_ENABLE_CLI=OFF -DCHIAKI_ENABLE_TESTS=OFF \
+            -DCHIAKI_ENABLE_CAUNOI=ON -DCHIAKI_ENABLE_FFMPEG_DECODER=ON \
+            -DCHIAKI_ENABLE_STEAMDECK_NATIVE=OFF -DCHIAKI_ENABLE_SETSU=OFF \
+            -DCHIAKI_ENABLE_STEAM_SHORTCUT=OFF -DCHIAKI_ENABLE_SPEEX=OFF \
+            -DCHIAKI_ENABLE_PI_DECODER=OFF \
+            -DPython3_EXECUTABLE="$(which python)" -DPYTHON_EXECUTABLE="$(which python)" \
+            -DOPENSSL_ROOT_DIR="$(brew --prefix)/opt/openssl@3" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix)/opt/openssl@3;$(brew --prefix)/opt/protobuf@29;$(brew --prefix)/opt/sdl2;$(brew --prefix)"
+
+      - name: Build
+        run: |
+          export CPATH=$(brew --prefix)/opt/ffmpeg/include
+          set +e
+          cmake --build build --config Release --target cau-noi 2>&1 | tee build.log
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            grep -E "error|Error|undefined|ld:" build.log | head -15 | while IFS= read -r l; do echo "::error::$l"; done
+            grep -A40 "Undefined symbols" build.log | grep -E '^\s+"_|referenced from' | head -40 | while IFS= read -r l; do echo "::error::SYM $l"; done
+          fi
+          exit $rc
+
+      - name: Package (kem thu vien dylib)
+        run: |
+          mkdir -p cau-noi-mac/libs
+          cp build/caunoi/cau-noi cau-noi-mac/
+          dylibbundler -od -b -x cau-noi-mac/cau-noi -d cau-noi-mac/libs -p @executable_path/libs/
+          # 21/10: SDL2 (hinh muot) nap luc can bang dlopen -> chep rieng vao libs
+          # 21/10: brew "sdl2" nay la sdl2-compat (can them SDL3, thieu -> abort luc nap) -> dung SDL2 THAT ban chinh thuc
+          curl -sSL -o sdl2.dmg https://github.com/libsdl-org/SDL/releases/download/release-2.30.12/SDL2-2.30.12.dmg
+          hdiutil attach -nobrowse -mountpoint /tmp/sdl2dmg sdl2.dmg
+          cp /tmp/sdl2dmg/SDL2.framework/Versions/A/SDL2 cau-noi-mac/libs/libSDL2-2.0.0.dylib
+          hdiutil detach /tmp/sdl2dmg
+          chmod u+w cau-noi-mac/libs/libSDL2-2.0.0.dylib
+          lipo -info cau-noi-mac/libs/libSDL2-2.0.0.dylib
+          install_name_tool -id @executable_path/libs/libSDL2-2.0.0.dylib cau-noi-mac/libs/libSDL2-2.0.0.dylib
+          otool -L cau-noi-mac/libs/libSDL2-2.0.0.dylib
+          # ky tam (ad-hoc) de macOS cho chay
+          for f in cau-noi-mac/libs/*.dylib; do codesign --force --sign - "$f"; done
+          codesign --force --sign - cau-noi-mac/cau-noi
+          cp COPYING cau-noi-mac/LICENSE-AGPL.txt
+          echo "cau-noi (macOS) - dua tren chiaki-ng (https://github.com/streetpea/chiaki-ng), AGPL-3.0." > cau-noi-mac/README.txt
+          echo "Ma nguon: https://github.com/HoangTran4869/chiaki-ng (thu muc caunoi)" >> cau-noi-mac/README.txt
+          otool -L cau-noi-mac/cau-noi
+          du -sh cau-noi-mac cau-noi-mac/libs
+          ls -la cau-noi-mac cau-noi-mac/libs
+
+      - name: Smoke test (chay thu, khong can PS5)
+        timeout-minutes: 3
+        continue-on-error: true
+        run: |
+          cd cau-noi-mac
+          otool -L cau-noi > ../smoke.txt 2>&1 || true
+          echo "--- chay khong tham so" >> ../smoke.txt
+          (./cau-noi >> ../smoke.txt 2>&1 & p=$!; sleep 15; kill -9 $p 2>/dev/null && echo "!!! TREO (da giet sau 15s)" >> ../smoke.txt) || true
+          echo "--- tim" >> ../smoke.txt
+          (./cau-noi tim --giay 2 >> ../smoke.txt 2>&1 & p=$!; sleep 10; kill -9 $p 2>/dev/null && echo "!!! TREO" >> ../smoke.txt) || true
+          cat ../smoke.txt
+          grep -q "cua so muot (mac)" ../smoke.txt && echo "CO HINH MUOT (SDL2)" || echo "::warning::KHONG co hinh muot"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: cau-noi-mac-intel
+          path: cau-noi-mac
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Push to branch ban-build-mac-intel (de Claude lay ve qua git)
+        run: |
+          mkdir out
+          cp -R cau-noi-mac out/
+          (cd cau-noi-mac && ls -lR) > out/danh_sach_file.txt
+          cd out
+          find cau-noi-mac -type f -size +18000k | while read f; do
+            split -b 18000000 "$f" "$f.phan_" && rm "$f"
+          done
+          cd ..
+          echo "${{ github.sha }}" > out/commit.txt
+          cp smoke.txt out/ 2>/dev/null || true
+          cd out
+          git init -q
+          git checkout -q -b ban-build-mac-intel
+          git add .
+          git -c user.name=ci -c user.email=ci@example.com commit -q -m "build mac intel ${{ github.sha }}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ban-build-mac-intel
