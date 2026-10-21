@@ -76,11 +76,15 @@ jobs:
           ls -la cau-noi-mac cau-noi-mac/libs
 
       - name: Smoke test (chay thu, khong can PS5)
+        timeout-minutes: 3
+        continue-on-error: true
         run: |
           cd cau-noi-mac
-          ./cau-noi 2>&1 | head -20 || true
-          ./cau-noi 2>&1 | grep -q "cua so muot (mac)" && echo "CO HINH MUOT (SDL2)" || echo "::warning::KHONG co hinh muot"
-          (./cau-noi tim --timeout 2 2>&1 || true) | head -20
+          perl -e 'alarm 20; exec @ARGV' ./cau-noi > ../smoke.txt 2>&1 || true
+          echo "--- tim" >> ../smoke.txt
+          perl -e 'alarm 10; exec @ARGV' ./cau-noi tim --giay 2 >> ../smoke.txt 2>&1 || true
+          cat ../smoke.txt
+          grep -q "cua so muot (mac)" ../smoke.txt && echo "CO HINH MUOT (SDL2)" || echo "::warning::KHONG co hinh muot"
 
       - name: Upload
         uses: actions/upload-artifact@v4
@@ -101,6 +105,7 @@ jobs:
           done
           cd ..
           echo "${{ github.sha }}" > out/commit.txt
+          cp smoke.txt out/ 2>/dev/null || true
           cd out
           git init -q
           git checkout -q -b ban-build-mac
