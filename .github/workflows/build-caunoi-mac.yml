@@ -65,6 +65,11 @@ jobs:
           mkdir -p cau-noi-mac/libs
           cp build/caunoi/cau-noi cau-noi-mac/
           dylibbundler -od -b -x cau-noi-mac/cau-noi -d cau-noi-mac/libs -p @executable_path/libs/
+          # 21/10: SDL2 (hinh muot) nap luc can bang dlopen -> chep rieng vao libs
+          cp "$(brew --prefix sdl2)/lib/libSDL2-2.0.0.dylib" cau-noi-mac/libs/
+          chmod u+w cau-noi-mac/libs/libSDL2-2.0.0.dylib
+          install_name_tool -id @executable_path/libs/libSDL2-2.0.0.dylib cau-noi-mac/libs/libSDL2-2.0.0.dylib
+          otool -L cau-noi-mac/libs/libSDL2-2.0.0.dylib
           # ky tam (ad-hoc) de macOS cho chay
           for f in cau-noi-mac/libs/*.dylib; do codesign --force --sign - "$f"; done
           codesign --force --sign - cau-noi-mac/cau-noi
@@ -82,7 +87,7 @@ jobs:
           cd cau-noi-mac
           otool -L cau-noi > ../smoke.txt 2>&1 || true
           echo "--- chay khong tham so" >> ../smoke.txt
-          (DYLD_PRINT_LIBRARIES=1 ./cau-noi >> ../smoke.txt 2>&1 & p=$!; sleep 15; kill -9 $p 2>/dev/null && echo "!!! TREO (da giet sau 15s)" >> ../smoke.txt) || true
+          (./cau-noi >> ../smoke.txt 2>&1 & p=$!; sleep 15; kill -9 $p 2>/dev/null && echo "!!! TREO (da giet sau 15s)" >> ../smoke.txt) || true
           echo "--- tim" >> ../smoke.txt
           (./cau-noi tim --giay 2 >> ../smoke.txt 2>&1 & p=$!; sleep 10; kill -9 $p 2>/dev/null && echo "!!! TREO" >> ../smoke.txt) || true
           cat ../smoke.txt

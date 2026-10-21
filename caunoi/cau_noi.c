@@ -679,6 +679,99 @@ static bool g_vd_dang_bat(void) { return g_vd.ren != NULL; }
 #include <SDL_syswm.h>
 #include <objc/runtime.h>
 #include <objc/message.h>
+#include <dlfcn.h>
+// 21/10: nap SDL2 LUC CAN (dlopen) - khong nap AppKit luc khoi dong (lenh tim / dang_ky / chay nen khong lien quan)
+static __typeof__(SDL_SetHint) *p_SDL_SetHint;
+static __typeof__(SDL_Init) *p_SDL_Init;
+static __typeof__(SDL_GetError) *p_SDL_GetError;
+static __typeof__(SDL_CreateWindow) *p_SDL_CreateWindow;
+static __typeof__(SDL_GetWindowWMInfo) *p_SDL_GetWindowWMInfo;
+static __typeof__(SDL_CreateRenderer) *p_SDL_CreateRenderer;
+static __typeof__(SDL_GetRendererInfo) *p_SDL_GetRendererInfo;
+static __typeof__(SDL_SetYUVConversionMode) *p_SDL_SetYUVConversionMode;
+static __typeof__(SDL_SetRenderDrawColor) *p_SDL_SetRenderDrawColor;
+static __typeof__(SDL_RenderClear) *p_SDL_RenderClear;
+static __typeof__(SDL_RenderPresent) *p_SDL_RenderPresent;
+static __typeof__(SDL_DestroyTexture) *p_SDL_DestroyTexture;
+static __typeof__(SDL_DestroyRenderer) *p_SDL_DestroyRenderer;
+static __typeof__(SDL_DestroyWindow) *p_SDL_DestroyWindow;
+static __typeof__(SDL_SetWindowPosition) *p_SDL_SetWindowPosition;
+static __typeof__(SDL_SetWindowSize) *p_SDL_SetWindowSize;
+static __typeof__(SDL_PumpEvents) *p_SDL_PumpEvents;
+static __typeof__(SDL_FlushEvents) *p_SDL_FlushEvents;
+static __typeof__(SDL_CreateTexture) *p_SDL_CreateTexture;
+static __typeof__(SDL_UpdateNVTexture) *p_SDL_UpdateNVTexture;
+static __typeof__(SDL_UpdateYUVTexture) *p_SDL_UpdateYUVTexture;
+static __typeof__(SDL_GetRendererOutputSize) *p_SDL_GetRendererOutputSize;
+static __typeof__(SDL_RenderCopy) *p_SDL_RenderCopy;
+static int sdl_nap(void)
+{
+	static int da = 0;       // 0 chua thu, 1 ok, -1 loi
+	if(da) return da > 0;
+	da = -1;
+	void *h = dlopen("@executable_path/libs/libSDL2-2.0.0.dylib", RTLD_NOW | RTLD_LOCAL);
+	if(!h) h = dlopen("libSDL2-2.0.0.dylib", RTLD_NOW | RTLD_LOCAL);
+	if(!h)
+	{
+		fprintf(stderr, "VIDEO|loi|khong nap duoc SDL2: %s\n", dlerror());
+		fflush(stderr);
+		return 0;
+	}
+	if(0
+		|| !(p_SDL_SetHint = (__typeof__(SDL_SetHint) *)dlsym(h, "SDL_SetHint"))
+		|| !(p_SDL_Init = (__typeof__(SDL_Init) *)dlsym(h, "SDL_Init"))
+		|| !(p_SDL_GetError = (__typeof__(SDL_GetError) *)dlsym(h, "SDL_GetError"))
+		|| !(p_SDL_CreateWindow = (__typeof__(SDL_CreateWindow) *)dlsym(h, "SDL_CreateWindow"))
+		|| !(p_SDL_GetWindowWMInfo = (__typeof__(SDL_GetWindowWMInfo) *)dlsym(h, "SDL_GetWindowWMInfo"))
+		|| !(p_SDL_CreateRenderer = (__typeof__(SDL_CreateRenderer) *)dlsym(h, "SDL_CreateRenderer"))
+		|| !(p_SDL_GetRendererInfo = (__typeof__(SDL_GetRendererInfo) *)dlsym(h, "SDL_GetRendererInfo"))
+		|| !(p_SDL_SetYUVConversionMode = (__typeof__(SDL_SetYUVConversionMode) *)dlsym(h, "SDL_SetYUVConversionMode"))
+		|| !(p_SDL_SetRenderDrawColor = (__typeof__(SDL_SetRenderDrawColor) *)dlsym(h, "SDL_SetRenderDrawColor"))
+		|| !(p_SDL_RenderClear = (__typeof__(SDL_RenderClear) *)dlsym(h, "SDL_RenderClear"))
+		|| !(p_SDL_RenderPresent = (__typeof__(SDL_RenderPresent) *)dlsym(h, "SDL_RenderPresent"))
+		|| !(p_SDL_DestroyTexture = (__typeof__(SDL_DestroyTexture) *)dlsym(h, "SDL_DestroyTexture"))
+		|| !(p_SDL_DestroyRenderer = (__typeof__(SDL_DestroyRenderer) *)dlsym(h, "SDL_DestroyRenderer"))
+		|| !(p_SDL_DestroyWindow = (__typeof__(SDL_DestroyWindow) *)dlsym(h, "SDL_DestroyWindow"))
+		|| !(p_SDL_SetWindowPosition = (__typeof__(SDL_SetWindowPosition) *)dlsym(h, "SDL_SetWindowPosition"))
+		|| !(p_SDL_SetWindowSize = (__typeof__(SDL_SetWindowSize) *)dlsym(h, "SDL_SetWindowSize"))
+		|| !(p_SDL_PumpEvents = (__typeof__(SDL_PumpEvents) *)dlsym(h, "SDL_PumpEvents"))
+		|| !(p_SDL_FlushEvents = (__typeof__(SDL_FlushEvents) *)dlsym(h, "SDL_FlushEvents"))
+		|| !(p_SDL_CreateTexture = (__typeof__(SDL_CreateTexture) *)dlsym(h, "SDL_CreateTexture"))
+		|| !(p_SDL_UpdateNVTexture = (__typeof__(SDL_UpdateNVTexture) *)dlsym(h, "SDL_UpdateNVTexture"))
+		|| !(p_SDL_UpdateYUVTexture = (__typeof__(SDL_UpdateYUVTexture) *)dlsym(h, "SDL_UpdateYUVTexture"))
+		|| !(p_SDL_GetRendererOutputSize = (__typeof__(SDL_GetRendererOutputSize) *)dlsym(h, "SDL_GetRendererOutputSize"))
+		|| !(p_SDL_RenderCopy = (__typeof__(SDL_RenderCopy) *)dlsym(h, "SDL_RenderCopy")))
+	{
+		fprintf(stderr, "VIDEO|loi|SDL2 thieu ham\n");
+		fflush(stderr);
+		return 0;
+	}
+	da = 1;
+	return 1;
+}
+#define SDL_SetHint p_SDL_SetHint
+#define SDL_Init p_SDL_Init
+#define SDL_GetError p_SDL_GetError
+#define SDL_CreateWindow p_SDL_CreateWindow
+#define SDL_GetWindowWMInfo p_SDL_GetWindowWMInfo
+#define SDL_CreateRenderer p_SDL_CreateRenderer
+#define SDL_GetRendererInfo p_SDL_GetRendererInfo
+#define SDL_SetYUVConversionMode p_SDL_SetYUVConversionMode
+#define SDL_SetRenderDrawColor p_SDL_SetRenderDrawColor
+#define SDL_RenderClear p_SDL_RenderClear
+#define SDL_RenderPresent p_SDL_RenderPresent
+#define SDL_DestroyTexture p_SDL_DestroyTexture
+#define SDL_DestroyRenderer p_SDL_DestroyRenderer
+#define SDL_DestroyWindow p_SDL_DestroyWindow
+#define SDL_SetWindowPosition p_SDL_SetWindowPosition
+#define SDL_SetWindowSize p_SDL_SetWindowSize
+#define SDL_PumpEvents p_SDL_PumpEvents
+#define SDL_FlushEvents p_SDL_FlushEvents
+#define SDL_CreateTexture p_SDL_CreateTexture
+#define SDL_UpdateNVTexture p_SDL_UpdateNVTexture
+#define SDL_UpdateYUVTexture p_SDL_UpdateYUVTexture
+#define SDL_GetRendererOutputSize p_SDL_GetRendererOutputSize
+#define SDL_RenderCopy p_SDL_RenderCopy
 typedef struct
 {
 	SDL_Window *win;
@@ -724,6 +817,8 @@ static void video_hien(bool hien)
 static void video_bat_mac(int x, int y, int w, int h)
 {
 	video_tat();
+	if(!sdl_nap())
+		return;
 	if(!g_sdl_ok)
 	{
 		SDL_SetHint("SDL_MAC_BACKGROUND_APP", "1");                 // khong icon Dock, khong cuop ban phim
