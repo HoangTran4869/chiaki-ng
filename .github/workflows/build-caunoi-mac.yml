@@ -66,8 +66,13 @@ jobs:
           cp build/caunoi/cau-noi cau-noi-mac/
           dylibbundler -od -b -x cau-noi-mac/cau-noi -d cau-noi-mac/libs -p @executable_path/libs/
           # 21/10: SDL2 (hinh muot) nap luc can bang dlopen -> chep rieng vao libs
-          cp "$(brew --prefix sdl2)/lib/libSDL2-2.0.0.dylib" cau-noi-mac/libs/
+          # 21/10: brew "sdl2" nay la sdl2-compat (can them SDL3, thieu -> abort luc nap) -> dung SDL2 THAT ban chinh thuc
+          curl -sSL -o sdl2.dmg https://github.com/libsdl-org/SDL/releases/download/release-2.30.12/SDL2-2.30.12.dmg
+          hdiutil attach -nobrowse -mountpoint /tmp/sdl2dmg sdl2.dmg
+          cp /tmp/sdl2dmg/SDL2.framework/Versions/A/SDL2 cau-noi-mac/libs/libSDL2-2.0.0.dylib
+          hdiutil detach /tmp/sdl2dmg
           chmod u+w cau-noi-mac/libs/libSDL2-2.0.0.dylib
+          lipo -info cau-noi-mac/libs/libSDL2-2.0.0.dylib
           install_name_tool -id @executable_path/libs/libSDL2-2.0.0.dylib cau-noi-mac/libs/libSDL2-2.0.0.dylib
           otool -L cau-noi-mac/libs/libSDL2-2.0.0.dylib
           # ky tam (ad-hoc) de macOS cho chay
