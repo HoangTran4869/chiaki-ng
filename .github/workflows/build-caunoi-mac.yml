@@ -80,9 +80,11 @@ jobs:
         continue-on-error: true
         run: |
           cd cau-noi-mac
-          perl -e 'alarm 20; exec @ARGV' ./cau-noi > ../smoke.txt 2>&1 || true
+          otool -L cau-noi > ../smoke.txt 2>&1 || true
+          echo "--- chay khong tham so" >> ../smoke.txt
+          (DYLD_PRINT_LIBRARIES=1 ./cau-noi >> ../smoke.txt 2>&1 & p=$!; sleep 15; kill -9 $p 2>/dev/null && echo "!!! TREO (da giet sau 15s)" >> ../smoke.txt) || true
           echo "--- tim" >> ../smoke.txt
-          perl -e 'alarm 10; exec @ARGV' ./cau-noi tim --giay 2 >> ../smoke.txt 2>&1 || true
+          (./cau-noi tim --giay 2 >> ../smoke.txt 2>&1 & p=$!; sleep 10; kill -9 $p 2>/dev/null && echo "!!! TREO" >> ../smoke.txt) || true
           cat ../smoke.txt
           grep -q "cua so muot (mac)" ../smoke.txt && echo "CO HINH MUOT (SDL2)" || echo "::warning::KHONG co hinh muot"
 
