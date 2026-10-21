@@ -682,6 +682,8 @@ static bool g_vd_dang_bat(void) { return g_vd.ren != NULL; }
 #include <dlfcn.h>
 // 21/10: nap SDL2 LUC CAN (dlopen) - khong nap AppKit luc khoi dong (lenh tim / dang_ky / chay nen khong lien quan)
 static __typeof__(SDL_SetHint) *p_SDL_SetHint;
+static __typeof__(SDL_GetWindowSize) *p_SDL_GetWindowSize;
+static __typeof__(SDL_GetWindowPosition) *p_SDL_GetWindowPosition;
 static __typeof__(SDL_Init) *p_SDL_Init;
 static __typeof__(SDL_GetError) *p_SDL_GetError;
 static __typeof__(SDL_CreateWindow) *p_SDL_CreateWindow;
@@ -719,6 +721,8 @@ static int sdl_nap(void)
 	}
 	if(0
 		|| !(p_SDL_SetHint = (__typeof__(SDL_SetHint) *)dlsym(h, "SDL_SetHint"))
+		|| !(p_SDL_GetWindowSize = (__typeof__(SDL_GetWindowSize) *)dlsym(h, "SDL_GetWindowSize"))
+		|| !(p_SDL_GetWindowPosition = (__typeof__(SDL_GetWindowPosition) *)dlsym(h, "SDL_GetWindowPosition"))
 		|| !(p_SDL_Init = (__typeof__(SDL_Init) *)dlsym(h, "SDL_Init"))
 		|| !(p_SDL_GetError = (__typeof__(SDL_GetError) *)dlsym(h, "SDL_GetError"))
 		|| !(p_SDL_CreateWindow = (__typeof__(SDL_CreateWindow) *)dlsym(h, "SDL_CreateWindow"))
@@ -750,6 +754,8 @@ static int sdl_nap(void)
 	return 1;
 }
 #define SDL_SetHint p_SDL_SetHint
+#define SDL_GetWindowSize p_SDL_GetWindowSize
+#define SDL_GetWindowPosition p_SDL_GetWindowPosition
 #define SDL_Init p_SDL_Init
 #define SDL_GetError p_SDL_GetError
 #define SDL_CreateWindow p_SDL_CreateWindow
@@ -785,6 +791,7 @@ typedef struct
 } Video;
 static Video g_vd;
 static bool g_sdl_ok = false;
+static unsigned g_vd_dem_ve = 0;
 
 static void ns_bool(void *o, const char *sel, bool v)
 {
@@ -881,6 +888,8 @@ static void video_nhip(AVFrame *f, uint32_t so)
 	{
 		video_m_moi = 0;
 		int x = video_mx, y = video_my, w = video_mw, h = video_mh;
+		fprintf(stderr, "VIDEO|M|%d,%d %dx%d\n", x, y, w, h);
+		fflush(stderr);
 		if(!g_vd.ren)
 			video_bat_mac(x, y, w, h);
 		else
@@ -895,7 +904,8 @@ static void video_nhip(AVFrame *f, uint32_t so)
 	{
 		video_lenh = 0;
 		if(l == 1) { video_tat(); fprintf(stderr, "VIDEO|tat\n"); fflush(stderr); }
-		else if(g_vd.ren) { g_vd.an = (l == 2); video_hien(!g_vd.an); g_vd.so_ve = 0; }
+		else if(g_vd.ren) { g_vd.an = (l == 2); video_hien(!g_vd.an); g_vd.so_ve = 0;
+			fprintf(stderr, "VIDEO|%s|da ve %u\n", g_vd.an ? "an" : "hien", g_vd_dem_ve); fflush(stderr); }
 	}
 	if(!g_vd.ren)
 		return;
@@ -944,6 +954,16 @@ static void video_nhip(AVFrame *f, uint32_t so)
 	}
 	SDL_RenderPresent(g_vd.ren);
 	g_vd.so_ve = so;
+	g_vd_dem_ve++;
+	if(g_vd_dem_ve == 1)
+	{
+		int wx = 0, wy = 0, ww = 0, wh = 0;
+		SDL_GetWindowPosition(g_vd.win, &wx, &wy);
+		SDL_GetWindowSize(g_vd.win, &ww, &wh);
+		fprintf(stderr, "VIDEO|ve_dau|cua so %d,%d %dx%d diem, ve %dx%d diem anh, hien=%d\n", wx, wy, ww, wh, ow, oh,
+			g_vd.ns ? (int)((BOOL (*)(id, SEL))objc_msgSend)((id)g_vd.ns, sel_registerName("isVisible")) : -1);
+		fflush(stderr);
+	}
 }
 static bool g_vd_dang_bat(void) { return g_vd.ren != NULL; }
 #else
