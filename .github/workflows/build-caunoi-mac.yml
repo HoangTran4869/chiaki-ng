@@ -32,7 +32,7 @@ jobs:
           python -m pip install 'protobuf>=5,<6' setuptools
           python -c "import google.protobuf; print('protobuf', google.protobuf.__version__)"
           export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
-          brew install ffmpeg opus openssl@3 cmake ninja pkgconf protobuf@29 json-c miniupnpc libevent dylibbundler || true
+          brew install ffmpeg opus openssl@3 cmake ninja pkgconf protobuf@29 json-c miniupnpc libevent dylibbundler sdl2 || true
           brew link --force protobuf@29 || true
 
       - name: Configure
@@ -46,7 +46,7 @@ jobs:
             -DCHIAKI_ENABLE_PI_DECODER=OFF \
             -DPython3_EXECUTABLE="$(which python)" -DPYTHON_EXECUTABLE="$(which python)" \
             -DOPENSSL_ROOT_DIR="$(brew --prefix)/opt/openssl@3" \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix)/opt/openssl@3;$(brew --prefix)/opt/protobuf@29"
+            -DCMAKE_PREFIX_PATH="$(brew --prefix)/opt/openssl@3;$(brew --prefix)/opt/protobuf@29;$(brew --prefix)/opt/sdl2;$(brew --prefix)"
 
       - name: Build
         run: |
@@ -79,6 +79,7 @@ jobs:
         run: |
           cd cau-noi-mac
           ./cau-noi 2>&1 | head -20 || true
+          ./cau-noi 2>&1 | grep -q "cua so muot (mac)" && echo "CO HINH MUOT (SDL2)" || echo "::warning::KHONG co hinh muot"
           (./cau-noi tim --timeout 2 2>&1 || true) | head -20
 
       - name: Upload

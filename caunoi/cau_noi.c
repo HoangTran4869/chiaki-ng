@@ -469,6 +469,10 @@ static volatile bool phat_dung = false;
 //   "V <hwnd>" bat / doi cha   "v" tat   "a" an tam   "A" hien lai
 static volatile long long video_hwnd_moi = 0;   // >0: bat vao cua so cha nay
 static volatile int video_lenh = 0;              // 1 = tat, 2 = an, 3 = hien
+// 21/10 Mac: "M x y w h" = cua so hinh muot RIENG (khong vien, khong nhan chuot) dat dung cho o xem cua app
+// (macOS khong cho gan cua so cua chuong trinh khac vao trong) - toa do diem man hinh, goc tren-trai
+static volatile int video_m_moi = 0;
+static volatile int video_mx = 0, video_my = 0, video_mw = 0, video_mh = 0;
 #if defined(_WIN32) && defined(CAUNOI_VIDEO)
 #define SDL_MAIN_HANDLED
 #include <SDL.h>
@@ -666,8 +670,189 @@ static void video_nhip(AVFrame *f, uint32_t so)
 	g_vd.so_ve = so;
 }
 static bool g_vd_dang_bat(void) { return g_vd.ren != NULL; }
+#elif defined(__APPLE__) && defined(CAUNOI_VIDEO)
+// ---------------------------------------------------------------- 21/10: CUA SO HINH MUOT (macOS)
+// Cua so SDL2 (Metal) KHONG VIEN, muc "noi" (tren cua so app), BO QUA CHUOT (chuot roi xuong o xem cua app),
+// khong hien icon Dock / khong gianh ban phim. App gui "M x y w h" moi khi o xem doi cho / doi co.
+#define SDL_MAIN_HANDLED
+#include <SDL.h>
+#include <SDL_syswm.h>
+#include <objc/runtime.h>
+#include <objc/message.h>
+typedef struct
+{
+	SDL_Window *win;
+	SDL_Renderer *ren;
+	SDL_Texture *tex;
+	int tex_w, tex_h, tex_nv12;
+	void *ns;               // NSWindow*
+	bool an;
+	uint32_t so_ve;
+	int lan_loi_lien;
+} Video;
+static Video g_vd;
+static bool g_sdl_ok = false;
+
+static void ns_bool(void *o, const char *sel, bool v)
+{
+	if(o) ((void (*)(id, SEL, BOOL))objc_msgSend)((id)o, sel_registerName(sel), v ? YES : NO);
+}
+static void ns_long(void *o, const char *sel, long v)
+{
+	if(o) ((void (*)(id, SEL, long))objc_msgSend)((id)o, sel_registerName(sel), v);
+}
+static void ns_obj(void *o, const char *sel, void *v)
+{
+	if(o) ((void (*)(id, SEL, id))objc_msgSend)((id)o, sel_registerName(sel), (id)v);
+}
+
+static void video_tat(void)
+{
+	if(g_vd.tex) SDL_DestroyTexture(g_vd.tex);
+	if(g_vd.ren) SDL_DestroyRenderer(g_vd.ren);
+	if(g_vd.win) SDL_DestroyWindow(g_vd.win);
+	memset(&g_vd, 0, sizeof(g_vd));
+}
+
+static void video_hien(bool hien)
+{
+	if(!g_vd.ns) return;
+	if(hien) ((void (*)(id, SEL))objc_msgSend)((id)g_vd.ns, sel_registerName("orderFrontRegardless"));
+	else ns_obj(g_vd.ns, "orderOut:", NULL);
+}
+
+static void video_bat_mac(int x, int y, int w, int h)
+{
+	video_tat();
+	if(!g_sdl_ok)
+	{
+		SDL_SetHint("SDL_MAC_BACKGROUND_APP", "1");                 // khong icon Dock, khong cuop ban phim
+		SDL_SetHint("SDL_WINDOW_NO_ACTIVATION_WHEN_SHOWN", "1");
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "metal");
+		SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
+		SDL_SetHint(SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES, "0");
+		if(SDL_Init(SDL_INIT_VIDEO) != 0)
+		{
+			fprintf(stderr, "VIDEO|loi|SDL_Init: %s\n", SDL_GetError());
+			fflush(stderr);
+			return;
+		}
+		g_sdl_ok = true;
+	}
+	g_vd.win = SDL_CreateWindow("cau-noi", x, y, w > 16 ? w : 16, h > 16 ? h : 16,
+			SDL_WINDOW_BORDERLESS | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_SKIP_TASKBAR);
+	if(!g_vd.win)
+	{
+		fprintf(stderr, "VIDEO|loi|SDL_CreateWindow: %s\n", SDL_GetError());
+		fflush(stderr);
+		return;
+	}
+	SDL_SysWMinfo wm;
+	SDL_VERSION(&wm.version);
+	if(SDL_GetWindowWMInfo(g_vd.win, &wm) && wm.subsystem == SDL_SYSWM_COCOA)
+	{
+		g_vd.ns = (void *)wm.info.cocoa.window;
+		ns_bool(g_vd.ns, "setIgnoresMouseEvents:", true);     // chuot xuyen qua -> o xem cua app
+		ns_bool(g_vd.ns, "setHasShadow:", false);
+		ns_long(g_vd.ns, "setLevel:", 3);                       // NSFloatingWindowLevel: tren cua so app
+		ns_long(g_vd.ns, "setCollectionBehavior:", (1 << 0) | (1 << 4));  // moi Space + khong vao Mission Control
+	}
+	g_vd.ren = SDL_CreateRenderer(g_vd.win, -1, SDL_RENDERER_ACCELERATED);
+	if(!g_vd.ren)
+		g_vd.ren = SDL_CreateRenderer(g_vd.win, -1, 0);
+	if(!g_vd.ren)
+	{
+		fprintf(stderr, "VIDEO|loi|SDL_CreateRenderer: %s\n", SDL_GetError());
+		fflush(stderr);
+		video_tat();
+		return;
+	}
+	SDL_RendererInfo ri;
+	SDL_GetRendererInfo(g_vd.ren, &ri);
+	SDL_SetYUVConversionMode(SDL_YUV_CONVERSION_BT709);
+	SDL_SetRenderDrawColor(g_vd.ren, 0, 0, 0, 255);
+	SDL_RenderClear(g_vd.ren);
+	SDL_RenderPresent(g_vd.ren);
+	video_hien(true);
+	fprintf(stderr, "VIDEO|bat|%s\n", ri.name ? ri.name : "?");
+	fflush(stderr);
+}
+
+static void video_nhip(AVFrame *f, uint32_t so)
+{
+	video_hwnd_moi = 0;
+	bool doi = false;
+	if(video_m_moi)
+	{
+		video_m_moi = 0;
+		int x = video_mx, y = video_my, w = video_mw, h = video_mh;
+		if(!g_vd.ren)
+			video_bat_mac(x, y, w, h);
+		else
+		{
+			SDL_SetWindowPosition(g_vd.win, x, y);
+			SDL_SetWindowSize(g_vd.win, w > 1 ? w : 1, h > 1 ? h : 1);
+		}
+		doi = true;
+	}
+	int l = video_lenh;
+	if(l)
+	{
+		video_lenh = 0;
+		if(l == 1) { video_tat(); fprintf(stderr, "VIDEO|tat\n"); fflush(stderr); }
+		else if(g_vd.ren) { g_vd.an = (l == 2); video_hien(!g_vd.an); g_vd.so_ve = 0; }
+	}
+	if(!g_vd.ren)
+		return;
+	SDL_PumpEvents();
+	SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+	if(g_vd.an || !f || !dinh_dang_ho_tro(f) || (so == g_vd.so_ve && !doi))
+		return;
+	int nv12 = f->format == AV_PIX_FMT_NV12;
+	if(!g_vd.tex || g_vd.tex_w != f->width || g_vd.tex_h != f->height || g_vd.tex_nv12 != nv12)
+	{
+		if(g_vd.tex) SDL_DestroyTexture(g_vd.tex);
+		g_vd.tex = SDL_CreateTexture(g_vd.ren, nv12 ? SDL_PIXELFORMAT_NV12 : SDL_PIXELFORMAT_IYUV,
+				SDL_TEXTUREACCESS_STREAMING, f->width, f->height);
+		g_vd.tex_w = f->width; g_vd.tex_h = f->height; g_vd.tex_nv12 = nv12;
+		if(!g_vd.tex)
+			return;
+	}
+	int kq = nv12
+		? SDL_UpdateNVTexture(g_vd.tex, NULL, f->data[0], f->linesize[0], f->data[1], f->linesize[1])
+		: SDL_UpdateYUVTexture(g_vd.tex, NULL, f->data[0], f->linesize[0], f->data[1], f->linesize[1],
+				f->data[2], f->linesize[2]);
+	if(kq != 0)
+	{
+		if(++g_vd.lan_loi_lien >= 30)
+		{
+			fprintf(stderr, "VIDEO|loi|ve hinh loi lien tiep: %s\n", SDL_GetError());
+			fflush(stderr);
+			video_tat();
+		}
+		return;
+	}
+	g_vd.lan_loi_lien = 0;
+	int ow = 0, oh = 0;
+	SDL_GetRendererOutputSize(g_vd.ren, &ow, &oh);
+	double tl = (double)ow / f->width < (double)oh / f->height ? (double)ow / f->width : (double)oh / f->height;
+	SDL_Rect d;
+	d.w = (int)(f->width * tl); d.h = (int)(f->height * tl);
+	d.x = (ow - d.w) / 2; d.y = (oh - d.h) / 2;
+	SDL_RenderClear(g_vd.ren);
+	if(SDL_RenderCopy(g_vd.ren, g_vd.tex, NULL, &d) != 0 && ++g_vd.lan_loi_lien >= 30)
+	{
+		fprintf(stderr, "VIDEO|loi|ve hinh loi lien tiep: %s\n", SDL_GetError());
+		fflush(stderr);
+		video_tat();
+		return;
+	}
+	SDL_RenderPresent(g_vd.ren);
+	g_vd.so_ve = so;
+}
+static bool g_vd_dang_bat(void) { return g_vd.ren != NULL; }
 #else
-static void video_nhip(AVFrame *f, uint32_t so) { (void)f; (void)so; video_hwnd_moi = 0; video_lenh = 0; }
+static void video_nhip(AVFrame *f, uint32_t so) { (void)f; (void)so; video_hwnd_moi = 0; video_lenh = 0; video_m_moi = 0; }
 static void video_tat(void) {}
 static bool g_vd_dang_bat(void) { return false; }
 #endif
@@ -687,6 +872,15 @@ static void *doc_lenh_thread(void *user)
 			long long h = atoll(dong + 1);
 			if(h > 0)
 				video_hwnd_moi = h;
+		}
+		else if(dong[0] == 'M')
+		{
+			int x = 0, y = 0, w = 0, h = 0;
+			if(sscanf(dong + 1, "%d %d %d %d", &x, &y, &w, &h) == 4 && w > 0 && h > 0)
+			{
+				video_mx = x; video_my = y; video_mw = w; video_mh = h;
+				video_m_moi = 1;
+			}
 		}
 		else if(dong[0] == 'v')
 			video_lenh = 1;
@@ -1051,6 +1245,9 @@ int main(int argc, char **argv)
 				"  cau-noi phat --host IP --regist-key HEX --morning HEX [--ps4] [--fps 60]   (stdin: H=hinh, N=hinh nho 1/2, Q=thoat)\n"
 #if defined(_WIN32) && defined(CAUNOI_VIDEO)
 				"      cua so muot: stdin V <hwnd> = ve hinh vao o cua app, v = tat, a = an, A = hien\n"
+#endif
+#if defined(__APPLE__) && defined(CAUNOI_VIDEO)
+				"      cua so muot (mac): stdin M x y w h = cua so hinh dat dung o xem, v = tat, a = an, A = hien\n"
 #endif
 				"  cau-noi dang_ky --host IP --account HEX16 --pin 12345678 [--ps4]\n");
 		return 1;
