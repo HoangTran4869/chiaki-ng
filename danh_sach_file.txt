@@ -1,0 +1,32 @@
+total 2472
+-rw-r--r--   1 runner  staff    35069 Oct 22 04:38 LICENSE-AGPL.txt
+-rw-r--r--   1 runner  staff      159 Oct 22 04:38 README.txt
+-rwxr-xr-x   1 runner  staff  1223456 Oct 22 04:38 cau-noi
+drwxr-xr-x  26 runner  staff      832 Oct 22 04:38 libs
+
+./libs:
+total 75288
+-rwxr-xr-x  1 runner  staff  3189600 Oct 22 04:38 libSDL2-2.0.0.dylib
+-rw-r--r--  1 runner  staff  2990736 Oct 22 04:38 libSvtAv1Enc.4.2.0.dylib
+-rw-r--r--  1 runner  staff  9832800 Oct 22 04:38 libavcodec.63.1.101.dylib
+-rw-r--r--  1 runner  staff   661568 Oct 22 04:38 libavutil.61.1.101.dylib
+-rw-r--r--  1 runner  staff  4853136 Oct 22 04:38 libcrypto.3.dylib
+-rw-r--r--  1 runner  staff   864608 Oct 22 04:38 libdav1d.7.dylib
+-rw-r--r--  1 runner  staff   305936 Oct 22 04:38 libevent-2.1.7.dylib
+-rw-r--r--  1 runner  staff   259392 Oct 22 04:38 libidn2.0.dylib
+-rw-r--r--  1 runner  staff   230176 Oct 22 04:38 libintl.8.dylib
+-rw-r--r--  1 runner  staff   114528 Oct 22 04:38 libjson-c.5.5.0.dylib
+-rw-r--r--  1 runner  staff   185536 Oct 22 04:38 liblzma.5.dylib
+-rw-r--r--  1 runner  staff    91392 Oct 22 04:38 libminiupnpc.21.dylib
+-rw-r--r--  1 runner  staff   251920 Oct 22 04:38 libmp3lame.0.dylib
+-rw-r--r--  1 runner  staff   306496 Oct 22 04:38 libmpg123.0.dylib
+-rw-r--r--  1 runner  staff   202432 Oct 22 04:38 libnghttp2.14.dylib
+-rw-r--r--  1 runner  staff   375840 Oct 22 04:38 libopus.0.dylib
+-rw-r--r--  1 runner  staff   120880 Oct 22 04:38 libpsl.5.dylib
+-rw-r--r--  1 runner  staff   284880 Oct 22 04:38 libssh2.1.dylib
+-rw-r--r--  1 runner  staff   900736 Oct 22 04:38 libssl.3.dylib
+-rw-r--r--  1 runner  staff   121600 Oct 22 04:38 libswresample.7.1.101.dylib
+-rw-r--r--  1 runner  staff  2036288 Oct 22 04:38 libunistring.5.dylib
+-rw-r--r--  1 runner  staff  1760192 Oct 22 04:38 libvpx.12.dylib
+-rw-r--r--  1 runner  staff  1298192 Oct 22 04:38 libx264.165.dylib
+-rw-r--r--  1 runner  staff  7264256 Oct 22 04:38 libx265.217.dylib
