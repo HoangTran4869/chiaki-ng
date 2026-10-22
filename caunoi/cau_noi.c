@@ -786,6 +786,7 @@ typedef struct
 	int tex_w, tex_h, tex_nv12;
 	void *ns;               // NSWindow*
 	bool an;
+	bool nghi;              // 22/10: app da tat hinh muot (cua so cat di, giu lai de bat lai)
 	uint32_t so_ve;
 	int lan_loi_lien;
 } Video;
@@ -906,6 +907,15 @@ static void video_nhip(AVFrame *f, uint32_t so)
 		{
 			SDL_SetWindowPosition(g_vd.win, x, y);
 			SDL_SetWindowSize(g_vd.win, w > 1 ? w : 1, h > 1 ? h : 1);
+			if(g_vd.nghi)            // 22/10: dang "tat" (chi cat di) -> bat lai = hien lai cua so cu
+			{
+				g_vd.nghi = false;
+				g_vd.an = false;
+				g_vd.so_ve = 0;
+				video_hien(true);
+				fprintf(stderr, "VIDEO|bat_lai|dung lai cua so cu\n");
+				fflush(stderr);
+			}
 		}
 		doi = true;
 	}
@@ -913,8 +923,10 @@ static void video_nhip(AVFrame *f, uint32_t so)
 	if(l)
 	{
 		video_lenh = 0;
-		if(l == 1) { video_tat(); fprintf(stderr, "VIDEO|tat\n"); fflush(stderr); }
-		else if(g_vd.ren) { g_vd.an = (l == 2); video_hien(!g_vd.an); g_vd.so_ve = 0;
+		// 22/10 (anh bao: bat / tat Dich bang chuot lien tuc -> man hinh den / dung): Mac KHONG huy cua so khi tat,
+		// chi CAT di (huy + tao lai cua so Metal nhieu lan trong chuong trinh khong co vong su kien -> den / treo)
+		if(l == 1) { if(g_vd.ren) { g_vd.nghi = true; g_vd.an = true; video_hien(false); } fprintf(stderr, "VIDEO|tat\n"); fflush(stderr); }
+		else if(g_vd.ren && !g_vd.nghi) { g_vd.an = (l == 2); video_hien(!g_vd.an); g_vd.so_ve = 0;
 			fprintf(stderr, "VIDEO|%s|da ve %u\n", g_vd.an ? "an" : "hien", g_vd_dem_ve); fflush(stderr); }
 	}
 	if(!g_vd.ren)
