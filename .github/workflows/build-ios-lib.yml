@@ -1,0 +1,67 @@
+name: Build cau noi iOS (ChiakiIOS.xcframework)
+
+# Thu vien chiaki + cau noi cho ung dung iPhone "Dich Phu De Game" (AGPL-3.0, ma nguon: ios-caunoi).
+# Ket qua day len nhanh ban-ios-lib: ChiakiIOS.xcframework.zip (iPhone arm64 + may ao arm64).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "ios-caunoi/**"
+      - ".github/workflows/build-ios-lib.yml"
+
+jobs:
+  build-ios-lib:
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cai cong cu
+        run: |
+          python -m pip install 'protobuf>=5,<6' setuptools
+          export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
+          brew install cmake ninja pkgconf protobuf@29 || true
+          brew link --force protobuf@29 || true
+          cmake --version | head -1; protoc --version
+
+      - name: Build
+        run: |
+          set +e
+          bash ios-caunoi/build-ios.sh 2>&1 | tee build.log
+          rc=${PIPESTATUS[0]}
+          if [ $rc -ne 0 ]; then
+            grep -E "error|Error|undefined|ld:|CMake Error" build.log | head -25 | while IFS= read -r l; do echo "::error::$l"; done
+          fi
+          exit $rc
+
+      - name: Dong goi
+        run: |
+          cd build-ios
+          ditto -c -k --keepParent ChiakiIOS.xcframework ChiakiIOS.xcframework.zip
+          ls -la ChiakiIOS.xcframework.zip
+          find ChiakiIOS.xcframework -maxdepth 2
+
+      - name: Day len nhanh ban-ios-lib
+        if: always()
+        run: |
+          mkdir out
+          cp build-ios/ChiakiIOS.xcframework.zip out/ 2>/dev/null || true
+          tail -c 60000 build.log > out/build.log || true
+          echo "${{ github.sha }}" > out/commit.txt
+          cp COPYING out/LICENSE-AGPL.txt
+          echo "ChiakiIOS - chiaki-ng (https://github.com/streetpea/chiaki-ng) + cau noi iOS, AGPL-3.0. Ma nguon: thu muc ios-caunoi." > out/README.txt
+          cd out
+          git init -q
+          git checkout -q -b ban-ios-lib
+          git add .
+          git -c user.name=ci -c user.email=ci@example.com commit -q -m "ios lib ${{ github.sha }}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ban-ios-lib
