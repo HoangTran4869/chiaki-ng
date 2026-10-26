@@ -29,8 +29,8 @@ build_one() {
 	(
 		cd "$OUT/src/ossl-$SDK"
 		if [ "$SDK" = iphoneos ]; then T=ios64-xcrun; else T=iossimulator-xcrun; fi
-		./Configure "$T" no-shared no-tests no-engine no-async no-ui-console no-dso \
-			--prefix="$P/openssl" --libdir=lib -arch arm64 "$VMIN"
+		CFLAGS="-arch arm64 $VMIN" ./Configure "$T" no-shared no-tests no-engine no-async no-ui-console no-dso \
+			--prefix="$P/openssl" --libdir=lib
 		make -j"$JOBS" build_libs > /dev/null
 		make install_dev > /dev/null
 	)
