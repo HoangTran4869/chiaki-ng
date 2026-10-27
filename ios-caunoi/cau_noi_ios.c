@@ -12,6 +12,7 @@
 #include <net/if.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +35,9 @@ int cn_khoi_dong(cn_ham_nhat_ky nhat_ky, void *user)
 	g_nhat_ky = nhat_ky;
 	g_nhat_ky_user = user;
 	chiaki_log_init(&g_log, CHIAKI_LOG_ALL & ~CHIAKI_LOG_VERBOSE, log_cb, NULL);
+	// 27/10: iPhone mac dinh GIET ung dung khi ghi vao ket noi PS5 da dong (SIGPIPE) -> bo qua,
+	// de loi tra ve binh thuong (PS5 tu choi ghep doi / ngat phien thi khong van ung dung)
+	signal(SIGPIPE, SIG_IGN);
 	if(g_da_khoi_dong)
 		return 0;
 	ChiakiErrorCode err = chiaki_lib_init();
