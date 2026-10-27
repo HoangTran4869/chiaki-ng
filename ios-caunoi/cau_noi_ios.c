@@ -142,7 +142,7 @@ int cn_ghep_doi(const char *ip, const uint8_t tai_khoan[8], uint32_t ma_pin, boo
 		return 0;
 	}
 	snprintf(kq->loi, sizeof(kq->loi), "%s", !xong ? "Hết giờ - PS5 không trả lời" :
-		(dk.kieu == CHIAKI_REGIST_EVENT_TYPE_FINISHED_CANCELED ? "Đã huỷ" : "PS5 từ chối - kiểm tra mã 8 số và tài khoản"));
+		(dk.kieu == CHIAKI_REGIST_EVENT_TYPE_FINISHED_CANCELED ? "Đã huỷ" : "Ghép đôi không thành - kiểm tra IP, mã 8 số còn hạn và đúng tài khoản PSN đang bật Chơi từ xa"));
 	return 3;
 }
 
@@ -332,9 +332,13 @@ int cn_tim_ps5(int mili_giay, cn_ham_thay_may thay, void *user)
 		return 1;
 	}
 
+	// nhat ky rieng IM LANG: hoi 254 dia chi, dia chi trong bao loi tung cai -> chi dem, bao 1 dong
+	static ChiakiLog log_im;
+	chiaki_log_init(&log_im, 0, NULL, NULL);
 	ChiakiDiscovery discovery;
-	if(chiaki_discovery_init(&discovery, &g_log, AF_INET) != CHIAKI_ERR_SUCCESS)
+	if(chiaki_discovery_init(&discovery, &log_im, AF_INET) != CHIAKI_ERR_SUCCESS)
 		return 2;
+	int so_loi = 0;
 	TimCtx ctx = { thay, user };
 	ChiakiDiscoveryThread thread;
 	if(chiaki_discovery_thread_start(&thread, &discovery, tim_cb, &ctx) != CHIAKI_ERR_SUCCESS)
@@ -362,7 +366,8 @@ int cn_tim_ps5(int mili_giay, cn_ham_thay_may thay, void *user)
 				if(ip == cua_minh[k])
 					continue;
 				addr.sin_addr.s_addr = htonl(ip);
-				chiaki_discovery_send(&discovery, &packet, (struct sockaddr *)&addr, sizeof(addr));
+				if(chiaki_discovery_send(&discovery, &packet, (struct sockaddr *)&addr, sizeof(addr)) != CHIAKI_ERR_SUCCESS)
+					so_loi++;
 				if((d & 31) == 0)
 					usleep(2000);     // gian ra chut cho bo dinh tuyen khong rot goi
 			}
@@ -371,5 +376,7 @@ int cn_tim_ps5(int mili_giay, cn_ham_thay_may thay, void *user)
 
 	chiaki_discovery_thread_stop(&thread);
 	chiaki_discovery_fini(&discovery);
+	if(so_loi)
+		CHIAKI_LOGI(&g_log, "Tim PS5: %d dia chi khong gui duoc (binh thuong voi dia chi trong)", so_loi);
 	return 0;
 }
