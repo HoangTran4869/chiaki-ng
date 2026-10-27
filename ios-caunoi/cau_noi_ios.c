@@ -5,6 +5,13 @@
 #include <chiaki/log.h>
 #include <chiaki/regist.h>
 #include <chiaki/session.h>
+#include <chiaki/discovery.h>
+
+#include <arpa/inet.h>
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <unistd.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -259,4 +266,106 @@ void cn_ngat(void *phien)
 	chiaki_session_join(&p->session);
 	chiaki_session_fini(&p->session);
 	free(p);
+}
+
+// ---------------------------------------------------------------- tim PS5 (hoi tung dia chi)
+
+typedef struct
+{
+	cn_ham_thay_may thay;
+	void *user;
+} TimCtx;
+
+static void tim_cb(ChiakiDiscoveryHost *host, void *user)
+{
+	TimCtx *t = user;
+	if(!t->thay || !host->host_addr)
+		return;
+	t->thay(host->host_addr, host->host_name ? host->host_name : "",
+		host->host_type ? host->host_type : "",
+		chiaki_discovery_host_state_string(host->state), t->user);
+}
+
+static bool la_mang_noi_bo(uint32_t ip)   // ip theo thu tu may (host order)
+{
+	return (ip >> 24) == 10 || (ip >> 20) == (172 << 4 | 1) || (ip >> 16) == (192 << 8 | 168);
+}
+
+int cn_tim_ps5(int mili_giay, cn_ham_thay_may thay, void *user)
+{
+	// cac mang /24 cua may (Wi-Fi, day mang...) - toi da 4 mang
+	uint32_t mang[4];
+	uint32_t cua_minh[4];
+	int so_mang = 0;
+	struct ifaddrs *ds = NULL;
+	if(getifaddrs(&ds) == 0)
+	{
+		for(struct ifaddrs *i = ds; i && so_mang < 4; i = i->ifa_next)
+		{
+			if(!i->ifa_addr || i->ifa_addr->sa_family != AF_INET || !(i->ifa_flags & IFF_UP) || (i->ifa_flags & IFF_LOOPBACK))
+				continue;
+			uint32_t ip = ntohl(((struct sockaddr_in *)i->ifa_addr)->sin_addr.s_addr);
+			if(!la_mang_noi_bo(ip))
+				continue;
+			uint32_t m = ip & 0xFFFFFF00u;
+			bool trung = false;
+			for(int k = 0; k < so_mang; k++)
+				if(mang[k] == m)
+					trung = true;
+			if(trung)
+				continue;
+			char s[INET_ADDRSTRLEN];
+			inet_ntop(AF_INET, &((struct sockaddr_in *)i->ifa_addr)->sin_addr, s, sizeof(s));
+			CHIAKI_LOGI(&g_log, "Tim PS5 trong mang %s (%s)", s, i->ifa_name);
+			cua_minh[so_mang] = ip;
+			mang[so_mang++] = m;
+		}
+		freeifaddrs(ds);
+	}
+	if(so_mang == 0)
+	{
+		CHIAKI_LOGE(&g_log, "Khong thay mang Wi-Fi noi bo");
+		return 1;
+	}
+
+	ChiakiDiscovery discovery;
+	if(chiaki_discovery_init(&discovery, &g_log, AF_INET) != CHIAKI_ERR_SUCCESS)
+		return 2;
+	TimCtx ctx = { thay, user };
+	ChiakiDiscoveryThread thread;
+	if(chiaki_discovery_thread_start(&thread, &discovery, tim_cb, &ctx) != CHIAKI_ERR_SUCCESS)
+	{
+		chiaki_discovery_fini(&discovery);
+		return 2;
+	}
+
+	ChiakiDiscoveryPacket packet;
+	memset(&packet, 0, sizeof(packet));
+	packet.cmd = CHIAKI_DISCOVERY_CMD_SRCH;
+	packet.protocol_version = CHIAKI_DISCOVERY_PROTOCOL_VERSION_PS5;
+	struct sockaddr_in addr;
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(CHIAKI_DISCOVERY_PORT_PS5);
+
+	int so_vong = mili_giay >= 1500 ? 2 : 1;      // hoi 2 vong cho chac (goi UDP co the rot)
+	for(int vong = 0; vong < so_vong; vong++)
+	{
+		for(int k = 0; k < so_mang; k++)
+			for(uint32_t d = 1; d < 255; d++)
+			{
+				uint32_t ip = mang[k] | d;
+				if(ip == cua_minh[k])
+					continue;
+				addr.sin_addr.s_addr = htonl(ip);
+				chiaki_discovery_send(&discovery, &packet, (struct sockaddr *)&addr, sizeof(addr));
+				if((d & 31) == 0)
+					usleep(2000);     // gian ra chut cho bo dinh tuyen khong rot goi
+			}
+		usleep((useconds_t)(mili_giay / so_vong) * 1000);
+	}
+
+	chiaki_discovery_thread_stop(&thread);
+	chiaki_discovery_fini(&discovery);
+	return 0;
 }

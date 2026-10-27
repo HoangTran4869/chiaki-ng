@@ -49,6 +49,12 @@ void *cn_ket_noi(const char *ip, const char *regist_key_hex, const char *morning
 // dong phien (chan toi khi xong)
 void cn_ngat(void *phien);
 
+// Tim PS5 trong mang nha KHONG can quyen multicast: hoi rieng tung dia chi (x.x.x.1 -> .254)
+// cua moi mang IPv4 noi bo cua may. Chan khoang `mili_giay` (vd 2000) -> goi o luong phu.
+// Moi may tra loi -> goi `thay` (co the goi nhieu lan cho cung 1 may).
+typedef void (*cn_ham_thay_may)(const char *ip, const char *ten, const char *loai, const char *trang_thai, void *user);
+int cn_tim_ps5(int mili_giay, cn_ham_thay_may thay, void *user);
+
 #ifdef __cplusplus
 }
 #endif
