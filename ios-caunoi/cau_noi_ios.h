@@ -33,7 +33,7 @@ typedef struct
 	char regist_key[33];   // hex
 	char morning[33];      // hex
 	char ten_may[33];
-	char loi[96];
+	char loi[256];
 } cn_ket_qua_ghep;
 
 // goi 1 lan khi mo ung dung
