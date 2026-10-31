@@ -1,0 +1,12 @@
+[Warning] The 'requiredACG' field is not defined in appinfo.json.
+ACG (Access Control Group) controls an app's permission to call Luna Bus APIs on webOS.
+ Depending on the target webOS version, this field can be required for every app to pass the submission eligibility check - even apps that do not call any Luna APIs. 
+If your app does not use Luna APIs, declare an empty array: "requiredACG": []
+For details, see: https://webostv.developer.lge.com/develop/guides/acg-guide
+Create vn.dichgame.tvlg_1.1.4_all.ipk to /home/runner/work/DichGameAndroid/DichGameAndroid/out
+[Warning] The Node.js version available on the target device may be lower than your development environment. Check the supported version before using recent Node.js features:
+https://webostv.developer.lge.com/develop/guides/js-service-basics#supported-nodejs-version
+Success
+debian-binary
+control.tar.gz
+data.tar.gz
