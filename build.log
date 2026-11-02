@@ -31,8 +31,8 @@ Daemon will be stopped at the end of the build
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
 > Task :app:desugarReleaseFileDependencies
-> Task :app:processReleaseManifestForPackage
 > Task :app:mergeReleaseStartupProfile
+> Task :app:processReleaseManifestForPackage
 > Task :app:mergeExtDexRelease
 > Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
@@ -48,13 +48,13 @@ Note: /home/runner/work/DichGameAndroid/DichGameAndroid/tvapp/app/src/main/java/
 Note: Recompile with -Xlint:deprecation for details.
 
 > Task :app:dexBuilderRelease
+> Task :app:mergeDexRelease
 > Task :app:mergeReleaseGlobalSynthetics
 > Task :app:processReleaseJavaRes NO-SOURCE
-> Task :app:mergeDexRelease
 > Task :app:compileReleaseArtProfile
 > Task :app:optimizeReleaseResources
-> Task :app:mergeReleaseJavaResource
 > Task :app:collectReleaseDependencies
+> Task :app:mergeReleaseJavaResource
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
@@ -62,7 +62,7 @@ Note: Recompile with -Xlint:deprecation for details.
 > Task :app:packageRelease
 > Task :app:createReleaseApkListingFileRedirect
 > Task :app:assembleRelease
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1793593282761.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1793597518969.json
 
-BUILD SUCCESSFUL in 58s
+BUILD SUCCESSFUL in 48s
 38 actionable tasks: 38 executed
