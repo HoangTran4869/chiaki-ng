@@ -40,10 +40,8 @@ Daemon will be stopped at the end of the build
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
 > Task :app:compressReleaseAssets
-> Task :app:extractReleaseVersionControlInfo
-> Task :app:processReleaseJavaRes NO-SOURCE
 > Task :app:processReleaseResources
-> Task :app:mergeReleaseJavaResource
+> Task :app:extractReleaseVersionControlInfo
 
 > Task :app:compileReleaseJavaWithJavac
 Note: /home/runner/work/DichGameAndroid/DichGameAndroid/tvapp/app/src/main/java/vn/dichgame/tv/XacNhanActivity.java uses or overrides a deprecated API.
@@ -51,18 +49,20 @@ Note: Recompile with -Xlint:deprecation for details.
 
 > Task :app:dexBuilderRelease
 > Task :app:mergeReleaseGlobalSynthetics
+> Task :app:processReleaseJavaRes NO-SOURCE
 > Task :app:mergeDexRelease
 > Task :app:compileReleaseArtProfile
+> Task :app:optimizeReleaseResources
+> Task :app:mergeReleaseJavaResource
 > Task :app:collectReleaseDependencies
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
-> Task :app:optimizeReleaseResources
 > Task :app:writeReleaseSigningConfigVersions
 > Task :app:packageRelease
 > Task :app:createReleaseApkListingFileRedirect
 > Task :app:assembleRelease
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1793440270230.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1793593282761.json
 
-BUILD SUCCESSFUL in 1m
+BUILD SUCCESSFUL in 58s
 38 actionable tasks: 38 executed
