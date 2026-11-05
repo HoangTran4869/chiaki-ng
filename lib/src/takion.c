@@ -11,6 +11,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <errno.h>
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#include <sys/socket.h>
+#endif
 #include <string.h>
 #include <assert.h>
 
@@ -190,6 +194,32 @@ static ChiakiErrorCode takion_recv_message_cookie_ack(ChiakiTakion *takion);
 static void takion_handle_packet_av(ChiakiTakion *takion, uint8_t base_type, uint8_t *buf, size_t buf_size);
 static ChiakiErrorCode takion_read_extra_sock_messages(ChiakiTakion *takion);
 
+
+/* iPhone (iOS 27.x): bo dem nhan 100 KB qua nho cho hinh 1080p -> khung IDR lon tran bo dem -> mat goi, hinh giat.
+ * Tang bo dem nhan (thu 8 MB -> 512 KB) + danh dau luong video tuong tac de Wi-Fi uu tien. Chi ap dung tren iOS. */
+static void takion_ios_toi_uu_sock(ChiakiTakion *takion)
+{
+#if defined(__APPLE__) && TARGET_OS_IPHONE
+	static const int kich_thuoc[] = { 8 << 20, 4 << 20, 2 << 20, 1 << 20, 512 << 10 };
+	for(size_t i = 0; i < sizeof(kich_thuoc) / sizeof(kich_thuoc[0]); i++)
+	{
+		int v = kich_thuoc[i];
+		if(setsockopt(takion->sock, SOL_SOCKET, SO_RCVBUF, &v, sizeof(v)) == 0)
+		{
+			CHIAKI_LOGI(takion->log, "Takion iOS: bo dem nhan %d KB", v >> 10);
+			break;
+		}
+	}
+#ifdef SO_NET_SERVICE_TYPE
+	int loai = NET_SERVICE_TYPE_VI;
+	if(setsockopt(takion->sock, SOL_SOCKET, SO_NET_SERVICE_TYPE, &loai, sizeof(loai)) == 0)
+		CHIAKI_LOGI(takion->log, "Takion iOS: uu tien Wi-Fi cho video tuong tac");
+#endif
+#else
+	(void)takion;
+#endif
+}
+
 CHIAKI_EXPORT ChiakiErrorCode chiaki_takion_connect(ChiakiTakion *takion, ChiakiTakionConnectInfo *info, chiaki_socket_t *sock)
 {
 	ChiakiErrorCode ret = CHIAKI_ERR_SUCCESS;
@@ -265,6 +295,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_takion_connect(ChiakiTakion *takion, Chiaki
 			ret = CHIAKI_ERR_NETWORK;
 			goto error_sock;
 		}
+		takion_ios_toi_uu_sock(takion);
 
 #if defined(__APPLE__) && TARGET_OS_OSX
 		SInt32 majorVersion;
@@ -353,6 +384,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_takion_connect(ChiakiTakion *takion, Chiaki
 			ret = CHIAKI_ERR_NETWORK;
 			goto error_sock;
 		}
+		takion_ios_toi_uu_sock(takion);
 		if(info->ip_dontfrag)
 		{
 #if defined(__APPLE__) && TARGET_OS_OSX

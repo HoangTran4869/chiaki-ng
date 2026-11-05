@@ -224,7 +224,7 @@ void *cn_ket_noi(const char *ip, const char *regist_key_hex, const char *morning
 	chiaki_connect_video_profile_preset(&ci->video_profile, CHIAKI_VIDEO_RESOLUTION_PRESET_1080p,
 		fps >= 60 ? CHIAKI_VIDEO_FPS_PRESET_60 : CHIAKI_VIDEO_FPS_PRESET_30);
 	if(fps >= 60)
-		ci->video_profile.bitrate = 30000;
+		ci->video_profile.bitrate = 20000;	/* 30 Mbps -> 20 Mbps: it goi dot bien hon tren Wi-Fi iPhone, van du net de doc chu */
 	ci->video_profile.codec = CHIAKI_CODEC_H264;
 	ci->video_profile_auto_downgrade = true;
 	ci->enable_keyboard = false;
