@@ -18,8 +18,8 @@ Daemon will be stopped at the end of the build
 > Task :app:extractReleaseNativeSymbolTables NO-SOURCE
 > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:checkReleaseDuplicateClasses
-> Task :app:javaPreCompileRelease
 > Task :app:checkReleaseAarMetadata
+> Task :app:javaPreCompileRelease
 > Task :app:generateReleaseResValues
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
@@ -44,17 +44,17 @@ Daemon will be stopped at the end of the build
 > Task :app:extractReleaseVersionControlInfo
 
 > Task :app:compileReleaseJavaWithJavac
-Note: /home/runner/work/DichGameAndroid/DichGameAndroid/tvapp/app/src/main/java/vn/dichgame/tv/XacNhanActivity.java uses or overrides a deprecated API.
+Note: Some input files use or override a deprecated API.
 Note: Recompile with -Xlint:deprecation for details.
 
 > Task :app:dexBuilderRelease
-> Task :app:mergeDexRelease
 > Task :app:mergeReleaseGlobalSynthetics
+> Task :app:mergeDexRelease
 > Task :app:processReleaseJavaRes NO-SOURCE
 > Task :app:compileReleaseArtProfile
 > Task :app:optimizeReleaseResources
-> Task :app:collectReleaseDependencies
 > Task :app:mergeReleaseJavaResource
+> Task :app:collectReleaseDependencies
 > Task :app:sdkReleaseDependencyData
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
@@ -62,7 +62,7 @@ Note: Recompile with -Xlint:deprecation for details.
 > Task :app:packageRelease
 > Task :app:createReleaseApkListingFileRedirect
 > Task :app:assembleRelease
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1793597518969.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1795768002559.json
 
-BUILD SUCCESSFUL in 48s
+BUILD SUCCESSFUL in 51s
 38 actionable tasks: 38 executed
